@@ -1,3 +1,4 @@
+import {validateBrand} from './branding.mjs';
 import {validateProfile} from './profile.mjs';
 import {passwordRecovery,passwordValue} from './recovery.mjs';
 import {LEAD_SOURCES, clientStatus} from '../shared/sales.mjs';
@@ -37,7 +38,9 @@ const cookie=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>
 if(action==='logout'){db.sessions=db.sessions.filter(s=>s!==session);res.setHeader('Set-Cookie','lotea_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return {ok:true};}
 if(action==='state')return scoped(db,user);
 const v=body.data||{};
-if(action==='profile.save'){
+if(action==='branding.save'){
+ manager(user);db.company=validateBrand(v);event(db,user,'Identidade visual atualizada','Nome, logo e cores da empresa atualizados.');
+}else if(action==='profile.save'){
  const valid=validateProfile(v),newPassword=v.newPassword?passwordValue(v.newPassword):'',sensitive=valid.email!==user.email||!!newPassword;
  if(sensitive){
   const ip=req.headers['x-real-ip']||req.socket?.remoteAddress||'local';

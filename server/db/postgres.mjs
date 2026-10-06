@@ -1,3 +1,4 @@
+import {publicBrand} from '../branding.mjs';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {hash,fail,scoped} from '../domain.mjs';
@@ -33,6 +34,7 @@ function selected(action){
  if(action==='login')return [...security,'audit_events'];
  if(action==='info')return [];
  if(action.startsWith('invite.')||action.startsWith('password.')||action==='logout'||(action==='user.save'||action==='profile.save'))return [...security,'audit_events'];
+ if(action==='branding.save')return ['users','sessions','audit_events'];
  if(action==='goals.save')return ['users','sessions','goals','audit_events'];
  if(action==='developer.save')return ['users','sessions','developers','audit_events'];
  if(action==='product.save')return ['users','sessions','developers','products','product_conditions','product_photos','audit_events'];
@@ -101,11 +103,13 @@ export async function runTransaction(pool,fn,{req={headers:{}},body={action:'sta
   if(action.startsWith('sale.')||action==='entry.pay'||action==='commission.receive')locks.push(action==='sale.create'?'product:'+body.data?.productId:'sale:'+(body.data?.saleId||body.data?.id));
   if(action==='product.save')locks.push('product:'+(body.data?.id||'new'));
   if(action.startsWith('land.'))locks.push('lands');
+  if(action==='branding.save')locks.push('branding');
   if(action==='goals.save')locks.push('goal:'+body.data?.type+':'+body.data?.period);
   if(action==='developer.save')locks.push('developer:'+(body.data?.id||'new'));
   for(const lock of locks.sort())await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[companyId+':'+lock]);
   if(recoveryPending){const rows=await repo.load([...security,'audit_events']),db=hydrate(rows);recoverAdmin(db,env);await repo.save(rows,db);}
-  if(action==='info'){await c.query('COMMIT');return {demo:false,registration:'invite',storage:'postgres-relational',schemaVersion:3};}
+  const companyRow=(await repo.query('SELECT *,xmin::text AS _revision FROM patrimonio.companies WHERE id=$1')).rows[0];
+  if(action==='info'){await c.query('COMMIT');return {demo:false,registration:'invite',storage:'postgres-relational',schemaVersion:3,company:publicBrand(companyRow)};}
   const publicActions=['login','invite.inspect','invite.accept','password.request','password.inspect','password.reset'];
   if(!publicActions.includes(action)){
    const cookie=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('lotea_session='))?.split('=')[1];
@@ -119,13 +123,16 @@ export async function runTransaction(pool,fn,{req={headers:{}},body={action:'sta
    await repo.query('DELETE FROM patrimonio.password_resets WHERE company_id=$1 AND expires_at<now()');
   }
   const rows=await repo.load(selected(action),body),db=hydrate(rows);
+  db.company=publicBrand(companyRow);
   const result=await fn(db);
+  if(action==='branding.save'){const b=db.company;const saved=await repo.query('UPDATE patrimonio.companies SET name=$2,logo_url=$3,primary_color=$4,background_color=$5,accent_color=$6 WHERE id=$1 AND xmin::text=$7',[b.name,b.logoUrl,b.primaryColor,b.backgroundColor,b.accentColor,companyRow._revision]);if(!saved.rowCount)fail('A identidade visual foi alterada. Atualize a página e tente novamente.',409);}
   if(action!=='state')await repo.save(rows,db);
   // Keep the existing UI response contract; ordinary writes affect only changed rows.
   // Full dashboard projection is a read, scoped to the server-selected company.
   let response=result;
   if(result.user&&action!=='state'){
    const state=hydrate(await repo.load([...business,'users','invitations','audit_events']));
+   state.company=db.company;
    response={...result,...scoped(state,state.users.find(u=>u.id===result.user.id))};
   }
   await c.query('COMMIT');return response;

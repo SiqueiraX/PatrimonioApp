@@ -49,7 +49,7 @@ export async function passwordRecovery(db,req,body,{env=process.env,send=fetch,n
     const link=`${config.origin}/#/redefinir-senha?token=${token}`;
     const record={tokenHash,userId:user.id,email:user.email,passwordHash:user.password,expiresAt:now+30*60*1000};
     try{
-      const response=await send('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${config.key}`,'Content-Type':'application/json','Idempotency-Key':`password-reset-${tokenHash}`},body:JSON.stringify({from:config.from,to:[user.email],subject:'Redefina sua senha · Lotea',text:`Foi solicitada uma nova senha para sua conta.\n\nAbra este link em até 30 minutos:\n${link}\n\nSe você não fez este pedido, ignore este e-mail. Sua senha permanece a mesma.`}),signal:AbortSignal.timeout(8000)});
+      const response=await send('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${config.key}`,'Content-Type':'application/json','Idempotency-Key':`password-reset-${tokenHash}`},body:JSON.stringify({from:config.from,to:[user.email],subject:`Redefina sua senha · ${db.company?.name||'Gestão imobiliária'}`,text:`Foi solicitada uma nova senha para sua conta.\n\nAbra este link em até 30 minutos:\n${link}\n\nSe você não fez este pedido, ignore este e-mail. Sua senha permanece a mesma.`}),signal:AbortSignal.timeout(8000)});
       if(!response.ok)throw Error('provider');
       db.passwordResets.push(record);
     }catch{console.error('password_reset_delivery_failed');}

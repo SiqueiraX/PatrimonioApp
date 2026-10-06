@@ -61,6 +61,12 @@ test('PostgreSQL: records, workflows, constraints, tenant isolation, rollback an
   await pool.query("INSERT INTO patrimonio.password_resets(company_id,token_hash,user_id,email,password_hash,expires_at) SELECT company_id,$2,id,email,password_hash,now()+interval '30 minutes' FROM patrimonio.users WHERE company_id=$1 AND id=$3",[company,tokenHash,broker.id]);
   const resets=await Promise.allSettled([run('password.reset',{token,password:'ChangedPassword123'},null),run('password.reset',{token,password:'AnotherPassword123'},null)]);assert.equal(resets.filter(r=>r.status==='fulfilled').length,1);
   await assert.rejects(run('state',{},brokerCookie),e=>e.status===401);
+  const branding={name:'Imobiliária Teste',logoUrl:'',primaryColor:'#26345b',backgroundColor:'#fafafa',accentColor:'#cc9900'};
+  await assert.rejects(run('branding.save',branding,brokerCookie),e=>e.status===401||e.status===403);
+  const branded=(await run('branding.save',{...branding,companyId:other.COMPANY_ID})).result;assert.equal(branded.company.name,branding.name);
+  assert.deepEqual((await run('info',{},null)).result.company,branding);
+  assert.notEqual((await run('info',{},null,{},other)).result.company.name,branding.name);
+  await assert.rejects(run('branding.save',{...branding,primaryColor:'red;display:none'}));
   // Profile columns persist independently and credentials rotate the active session.
   const profileData={name:'Administrador atualizado',email:'profile@example.com',cpf:'529.982.247-25',creci:'12345-F/MT',photo:'data:image/png;base64,iVBORw0KGgo=',currentPassword:env.ADMIN_PASSWORD,newPassword:'ProfilePassword123'};
   const profileResult=await run('profile.save',profileData);assert.ok(profileResult.cookie);const oldAdmin=adminCookie;adminCookie=profileResult.cookie;

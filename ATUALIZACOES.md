@@ -93,7 +93,7 @@ Selecione o projeto, branch e database correspondentes à `DATABASE_URL` de Prod
 
 `password_hash` não é uma senha legível; não substitua por texto simples. Para alterações comuns de usuários, use o painel do aplicativo. O editor do Neon permite consultas e alterações diretas; as regras e chaves estrangeiras continuam sendo verificadas pelo PostgreSQL.
 
-Os vínculos entre tabelas incluem `company_id`, impedindo relações entre empresas diferentes. A empresa atendida por cada instalação vem da variável de servidor `COMPANY_ID` (padrão `main`), nunca do navegador. `COMPANY_NAME` define o nome na criação inicial. Nesta etapa não há cadastro de empresas, roteamento por domínio ou editor de white label na interface. Os campos de identidade visual estão preparados no banco para a próxima etapa.
+Os vínculos entre tabelas incluem `company_id`, impedindo relações entre empresas diferentes. A empresa atendida por cada instalação vem da variável de servidor `COMPANY_ID` (padrão `main`), nunca do navegador. `COMPANY_NAME` define o nome na criação inicial. A identidade visual pode ser editada pelo gestor na interface. Cadastro de empresas e roteamento por domínio ainda não estão incluídos.
 
 A API usa transações, bloqueios por registro/recurso nas operações concorrentes e comparação de revisão nas atualizações. Não regrava um documento global. O painel ainda carrega uma visão completa da empresa; paginação e consultas específicas por tela podem ser adicionadas conforme o volume crescer.
 
@@ -112,3 +112,14 @@ A foto aceita JPG, PNG ou WebP de até 10 MB na seleção, é recortada ao centr
 Para mudar e-mail ou senha é obrigatório confirmar a senha atual. A senha nova tem de 12 a 128 caracteres. Essas alterações renovam a sessão deste navegador, encerram as outras sessões e invalidam os links de recuperação anteriores. Tentativas incorretas de confirmação são limitadas. CPF, foto e senhas não são gravados no texto de auditoria. A troca de e-mail não envia confirmação: o serviço de envio ainda é opcional; confira o endereço antes de salvar.
 
 A estrutura v3 adiciona `cpf`, `creci` e `photo_data_url` à tabela `patrimonio.users`, preservando todos os usuários e demais dados existentes.
+
+
+## White label: identidade visual
+
+Em **Configurações → Identidade visual → Personalizar marca**, o gestor pode definir nome da empresa, logo e cores principal, de fundo e de destaque. A prévia permite conferir a combinação antes de salvar. Corretores não têm permissão para alterar a marca.
+
+O upload aceita PNG, JPEG e WebP de até 10 MB; o navegador reduz a imagem para até 800 × 400, mantendo a proporção, e o servidor limita o resultado armazenado. SVG e endereços externos não são aceitos como logo.
+
+A identidade é persistida na empresa e aplicada ao login, navegação, título e ícone da aba, gráficos e identificação das exportações. O assunto dos e-mails de recuperação usa o nome configurado; o remetente continua dependendo de `EMAIL_FROM`. Os dados existentes são preservados.
+
+Esta etapa personaliza cada instalação, cuja empresa é selecionada no servidor por `COMPANY_ID`. Não inclui painel global de empresas, provisionamento automático, cobrança ou configuração de domínios próprios.

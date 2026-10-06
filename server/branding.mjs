@@ -1,0 +1,4 @@
+import {fail,photos,text} from './domain.mjs';
+import {DEFAULT_BRAND} from '../shared/branding.mjs';
+export function validateBrand(v){const name=text(v.name,'Nome da empresa');if(name.length>80)fail('Use até 80 caracteres no nome da empresa.');const logoUrl=String(v.logoUrl||'');if(logoUrl.length>650000)fail('Escolha uma logo menor.');if(logoUrl)photos([logoUrl]);const result={name,logoUrl};for(const key of ['primaryColor','backgroundColor','accentColor']){const color=String(v[key]||'');if(!/^#[0-9a-fA-F]{6}$/.test(color))fail('Informe cores no formato #RRGGBB.');result[key]=color.toLowerCase();}return result;}
+export function publicBrand(row){return row?{name:row.name,logoUrl:row.logo_url,primaryColor:row.primary_color,backgroundColor:row.background_color,accentColor:row.accent_color}:{...DEFAULT_BRAND};}
