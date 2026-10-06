@@ -1,4 +1,5 @@
-import {passwordRecovery} from './recovery.mjs';
+import {validateProfile} from './profile.mjs';
+import {passwordRecovery,passwordValue} from './recovery.mjs';
 import {LEAD_SOURCES, clientStatus} from '../shared/sales.mjs';
 import {randomBytes,createHash} from 'node:crypto';
 import {transaction} from './store.mjs';
@@ -36,7 +37,23 @@ const cookie=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>
 if(action==='logout'){db.sessions=db.sessions.filter(s=>s!==session);res.setHeader('Set-Cookie','lotea_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return {ok:true};}
 if(action==='state')return scoped(db,user);
 const v=body.data||{};
-if(action==='goals.save'){
+if(action==='profile.save'){
+ const valid=validateProfile(v),newPassword=v.newPassword?passwordValue(v.newPassword):'',sensitive=valid.email!==user.email||!!newPassword;
+ if(sensitive){
+  const ip=req.headers['x-real-ip']||req.socket?.remoteAddress||'local';
+  if(db.attempts.filter(a=>a.email===user.email||a.ip===ip).length>=10)return {error:'Muitas tentativas. Aguarde 15 minutos.',status:429};
+  if(String(v.currentPassword||'').length>128||!verify(String(v.currentPassword||''),user.password)){db.attempts.push({email:user.email,ip,at:now});return {error:'Senha atual incorreta. Nenhuma alteração foi salva.',status:400};}
+ }
+ if(db.users.some(u=>u.id!==user.id&&u.email===valid.email))fail('Este e-mail já está em uso.');
+ Object.assign(user,valid);if(newPassword)user.password=hash(newPassword);
+ if(sensitive){
+  db.passwordResets=(db.passwordResets||[]).filter(r=>r.userId!==user.id);
+  db.sessions=db.sessions.filter(s=>s.userId!==user.id);
+  const token=randomBytes(32).toString('hex');db.sessions.push({token:digest(token),userId:user.id,expires:now+12*60*60*1000});
+  res.setHeader('Set-Cookie',`lotea_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${process.env.VERCEL?'; Secure':''}`);
+ }
+ event(db,user,'Perfil atualizado',sensitive?'Dados de acesso atualizados e outras sessões encerradas.':'Dados pessoais atualizados.');
+}else if(action==='goals.save'){
   manager(user);const valid=validateGoal(v);db.goals ||= [];
   const old=db.goals.find(g=>g.type===valid.type&&g.period===valid.period);
   event(db,user,'Metas atualizadas',JSON.stringify({antes:old||null,depois:valid}));

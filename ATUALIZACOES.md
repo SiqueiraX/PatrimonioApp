@@ -102,3 +102,13 @@ A API usa transações, bloqueios por registro/recurso nas operações concorren
 Use um PostgreSQL local separado, `LOCAL_DATABASE_URL` e as variáveis iniciais do administrador. Não use a conexão de produção nos testes. O teste integrado roda com `TEST_DATABASE_URL=... node --test server/postgres.test.mjs`, cria empresas isoladas de teste e verifica fluxos completos, valores monetários, relações, concorrência, recuperação e isolamento. Sem essa variável, apenas o teste integrado é pulado no `npm test`.
 
 A estrutura é inicializada sob bloqueio transacional apenas na primeira conexão de cada processo; a versão no banco impede apagar dados novamente em redeploys. Uma falha de configuração ou criação reverte a transação. Não reverta para versões do aplicativo anteriores à estrutura v2: elas usam o armazenamento antigo.
+
+## Meu perfil
+
+Clique no seu nome na barra lateral ou em **Mais → seu nome** no celular. Cada pessoa pode alterar foto, nome, CPF, CRECI, e-mail e senha. CPF e CRECI são opcionais e só aparecem na resposta do próprio perfil, não na lista da equipe nem nos registros de auditoria. O CPF é armazenado sem pontuação e tem os dígitos verificadores validados. CRECI aceita número, categoria e UF em até 40 caracteres.
+
+A foto aceita JPG, PNG ou WebP de até 10 MB na seleção, é recortada ao centro e reduzida a 320 × 320 pixels. O servidor limita o resultado a 200 mil caracteres. Ela pode ser removida pelo perfil.
+
+Para mudar e-mail ou senha é obrigatório confirmar a senha atual. A senha nova tem de 12 a 128 caracteres. Essas alterações renovam a sessão deste navegador, encerram as outras sessões e invalidam os links de recuperação anteriores. Tentativas incorretas de confirmação são limitadas. CPF, foto e senhas não são gravados no texto de auditoria. A troca de e-mail não envia confirmação: o serviço de envio ainda é opcional; confira o endereço antes de salvar.
+
+A estrutura v3 adiciona `cpf`, `creci` e `photo_data_url` à tabela `patrimonio.users`, preservando todos os usuários e demais dados existentes.

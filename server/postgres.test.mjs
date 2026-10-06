@@ -61,6 +61,11 @@ test('PostgreSQL: records, workflows, constraints, tenant isolation, rollback an
   await pool.query("INSERT INTO patrimonio.password_resets(company_id,token_hash,user_id,email,password_hash,expires_at) SELECT company_id,$2,id,email,password_hash,now()+interval '30 minutes' FROM patrimonio.users WHERE company_id=$1 AND id=$3",[company,tokenHash,broker.id]);
   const resets=await Promise.allSettled([run('password.reset',{token,password:'ChangedPassword123'},null),run('password.reset',{token,password:'AnotherPassword123'},null)]);assert.equal(resets.filter(r=>r.status==='fulfilled').length,1);
   await assert.rejects(run('state',{},brokerCookie),e=>e.status===401);
+  // Profile columns persist independently and credentials rotate the active session.
+  const profileData={name:'Administrador atualizado',email:'profile@example.com',cpf:'529.982.247-25',creci:'12345-F/MT',photo:'data:image/png;base64,iVBORw0KGgo=',currentPassword:env.ADMIN_PASSWORD,newPassword:'ProfilePassword123'};
+  const profileResult=await run('profile.save',profileData);assert.ok(profileResult.cookie);const oldAdmin=adminCookie;adminCookie=profileResult.cookie;
+  const storedProfile=(await pool.query('SELECT name,email,cpf,creci,photo_data_url FROM patrimonio.users WHERE company_id=$1 AND id=$2',[company,'u1'])).rows[0];assert.equal(storedProfile.cpf,'52998224725');assert.equal(storedProfile.creci,profileData.creci);assert.equal(storedProfile.photo_data_url,profileData.photo);
+  await assert.rejects(run('state',{},oldAdmin),e=>e.status===401);assert.equal((await run('state')).result.user.cpf,'52998224725');
   // Operator recovery resets only access, not the company's business records.
   const recovered={...env,ADMIN_EMAIL:'recovered@example.com',ADMIN_PASSWORD:'RecoveredPassword123',ADMIN_RECOVERY_ID:'operator-'+company};
   await run('info',{},null,{},recovered);

@@ -23,6 +23,7 @@ export async function initialize(pool,env=process.env){
   const version=await c.query('INSERT INTO patrimonio.schema_versions(version) VALUES(2) ON CONFLICT DO NOTHING RETURNING version');
   // The owner authorized discarding all legacy demo data. Never touch unrelated tables.
   if(version.rowCount)await c.query('DROP TABLE IF EXISTS public.lotea_state');
+  await c.query('INSERT INTO patrimonio.schema_versions(version) VALUES(3) ON CONFLICT DO NOTHING');
   await c.query('COMMIT');
  }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}})();
  pending.set(companyId,promise);try{await promise;}catch(e){pending.delete(companyId);throw e;}
@@ -31,7 +32,7 @@ function selected(action){
  if(action==='state')return [...business,'users','sessions','invitations','audit_events'];
  if(action==='login')return [...security,'audit_events'];
  if(action==='info')return [];
- if(action.startsWith('invite.')||action.startsWith('password.')||action==='logout'||action==='user.save')return [...security,'audit_events'];
+ if(action.startsWith('invite.')||action.startsWith('password.')||action==='logout'||(action==='user.save'||action==='profile.save'))return [...security,'audit_events'];
  if(action==='goals.save')return ['users','sessions','goals','audit_events'];
  if(action==='developer.save')return ['users','sessions','developers','audit_events'];
  if(action==='product.save')return ['users','sessions','developers','products','product_conditions','product_photos','audit_events'];
@@ -94,7 +95,7 @@ export async function runTransaction(pool,fn,{req={headers:{}},body={action:'sta
  try{
   await c.query(action==='state'?'BEGIN ISOLATION LEVEL REPEATABLE READ':'BEGIN');const repo=new Repository(c,companyId);
   const recoveryPending=env.ADMIN_RECOVERY_ID&&!(await repo.query('SELECT 1 FROM patrimonio.admin_recoveries WHERE company_id=$1 AND request_hash=$2',[digest(String(env.ADMIN_RECOVERY_ID).trim())])).rowCount;
-  const authAction=action==='login'||action==='logout'||action==='user.save'||action.startsWith('invite.')||action.startsWith('password.');
+  const authAction=action==='login'||action==='logout'||(action==='user.save'||action==='profile.save')||action.startsWith('invite.')||action.startsWith('password.');
   const locks=[];
   if(authAction||recoveryPending)locks.push('security');
   if(action.startsWith('sale.')||action==='entry.pay'||action==='commission.receive')locks.push(action==='sale.create'?'product:'+body.data?.productId:'sale:'+(body.data?.saleId||body.data?.id));
@@ -104,7 +105,7 @@ export async function runTransaction(pool,fn,{req={headers:{}},body={action:'sta
   if(action==='developer.save')locks.push('developer:'+(body.data?.id||'new'));
   for(const lock of locks.sort())await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[companyId+':'+lock]);
   if(recoveryPending){const rows=await repo.load([...security,'audit_events']),db=hydrate(rows);recoverAdmin(db,env);await repo.save(rows,db);}
-  if(action==='info'){await c.query('COMMIT');return {demo:false,registration:'invite',storage:'postgres-relational',schemaVersion:2};}
+  if(action==='info'){await c.query('COMMIT');return {demo:false,registration:'invite',storage:'postgres-relational',schemaVersion:3};}
   const publicActions=['login','invite.inspect','invite.accept','password.request','password.inspect','password.reset'];
   if(!publicActions.includes(action)){
    const cookie=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('lotea_session='))?.split('=')[1];

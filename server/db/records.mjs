@@ -7,11 +7,11 @@ const nullable=v=>v===''||v===undefined?null:v;
 function table(name,list,fields,{key=['id'],dates=[],times=[],numbers=[],aliases={}}={}){
  const mapping=fields.split(' ').filter(Boolean).map(field=>[field,aliases[field]||snake(field)]);
  return {name,list,key, mapping,
- encode:o=>Object.fromEntries(mapping.map(([field,column])=>[column,dates.includes(field)?nullable(o[field]):times.includes(field)?(o[field]?new Date(o[field]).toISOString():null):o[field]??null])),
+ encode:o=>{if(name==='users')o={cpf:'',creci:'',photo:'',...o};return Object.fromEntries(mapping.map(([field,column])=>[column,dates.includes(field)?nullable(o[field]):times.includes(field)?(o[field]?new Date(o[field]).toISOString():null):o[field]??null]));},
  decode:r=>Object.fromEntries(mapping.map(([field,column])=>[field,dates.includes(field)?date(r[column]):times.includes(field)?time(r[column]):numbers.includes(field)?(r[column]===null?null:Number(r[column])):r[column] instanceof Date?r[column].toISOString():r[column]]))};
 }
 export const tables=[
- table('users','users','id name email password role active',{aliases:{password:'password_hash'}}),
+ table('users','users','id name email password role active cpf creci photo',{aliases:{password:'password_hash',photo:'photo_data_url'}}),
  table('developers','developers','id name contact'),
  table('products','products','id developerId name location description mapUrl launch construction active percent payDay',{aliases:{percent:'commission_percent',payDay:'payment_day'},numbers:['percent','payDay']}),
  table('product_conditions','conditions','productId id entryMode entryInstallments commissionMode commissionInstallments',{key:['product_id','id'],numbers:['entryInstallments','commissionInstallments']}),

@@ -139,3 +139,8 @@ CREATE INDEX IF NOT EXISTS resets_user ON patrimonio.password_resets(company_id,
 CREATE INDEX IF NOT EXISTS land_history_parent ON patrimonio.land_history(company_id,land_id,at DESC);
 CREATE INDEX IF NOT EXISTS sale_history_parent ON patrimonio.sale_history(company_id,sale_id,at DESC);
 CREATE INDEX IF NOT EXISTS commission_history_parent ON patrimonio.commission_history(company_id,commission_id,at DESC);
+
+-- Version 3: additive profile fields; existing accounts and business records are preserved.
+ALTER TABLE patrimonio.users ADD COLUMN IF NOT EXISTS cpf text NOT NULL DEFAULT '' CHECK(cpf='' OR cpf ~ '^[0-9]{11}$');
+ALTER TABLE patrimonio.users ADD COLUMN IF NOT EXISTS creci text NOT NULL DEFAULT '' CHECK(length(creci)<=40);
+ALTER TABLE patrimonio.users ADD COLUMN IF NOT EXISTS photo_data_url text NOT NULL DEFAULT '' CHECK(length(photo_data_url)<=200000);
