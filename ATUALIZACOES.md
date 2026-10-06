@@ -27,11 +27,13 @@ Ao registrar a venda, o corretor escolhe apenas uma condição cadastrada. A reg
 
 Com entrada, o valor informado é o total da entrada. O sistema gera suas parcelas mensais a partir do primeiro vencimento. Cada parcela pode ser marcada como paga nos detalhes. Sem entrada, não existem parcelas de entrada nem alertas falsos de atraso. O financiamento restante do lote permanece fora deste controle.
 
-## Compatibilidade e publicação
+## Banco relacional e publicação
 
-Vendas já existentes preservam suas regras, parcelas, recebimentos e histórico. Produtos antigos aparecem com uma condição compatível com sua regra anterior até que sejam editados. Não há limpeza, recálculo automático ou substituição de dados no Neon. O novo campo de convites é inicializado quando necessário no documento persistido; nenhuma variável de ambiente adicional é exigida.
+A partir da estrutura v2, o aplicativo usa tabelas relacionais PostgreSQL no schema **patrimonio**. A tabela antiga `public.lotea_state` é removida na primeira instalação desta estrutura. Não há importação do documento antigo: o responsável autorizou descartar os cadastros e vendas de teste. O administrador inicial é criado com `ADMIN_EMAIL`, `ADMIN_PASSWORD` e, opcionalmente, `ADMIN_NAME` da Vercel.
 
-Validação: `npm test` e `npm run build`. O deploy da Vercel usa os fontes e recompila o aplicativo.
+Todas as gravações posteriores preservam os registros atuais e alteram somente as linhas envolvidas. Alterações de produto não recalculam comissões já registradas. Não há mais armazenamento local em JSON.
+
+Validação: `npm test`, teste integrado PostgreSQL e `npm run build`. A Vercel recompila os fontes e inclui o arquivo de criação da estrutura.
 
 ## Metas de VGV
 
@@ -67,3 +69,36 @@ A tela de login oferece recuperação por e-mail. Configure em **Production** na
 O remetente/domínio deve ser verificado no Resend. Consulte https://resend.com/docs/api-reference/emails/send-email. Não há envio automático sem essa configuração; a interface informa a indisponibilidade. Erros de entrega são registrados no servidor como `password_reset_delivery_failed`, sem incluir endereços, chaves ou links.
 
 Links têm 30 minutos de validade, tokens aleatórios de 256 bits armazenados como hash e uso único. O link não revela o e-mail e não é consumido ao abrir: apenas ao salvar a nova senha. Trocar a senha ou o e-mail também invalida links anteriores. Uma recuperação válida encerra as sessões da conta e libera o bloqueio do navegador. Pedidos não revelam se existe uma conta e são limitados por e-mail, IP e total por hora. O funcionamento completo do envio depende das credenciais e do remetente configurados pelo responsável.
+
+
+## Encontrar os dados no Neon
+
+Selecione o projeto, branch e database correspondentes à `DATABASE_URL` de Production na Vercel. No **Data Editor / Tables**, troque o schema para **patrimonio**.
+
+| Tabela | Conteúdo |
+|---|---|
+| companies | Empresas e campos preparados para identidade visual |
+| users | Uma linha por usuário; e-mail, nome, perfil e hash da senha |
+| developers | Loteadoras |
+| products / product_conditions / product_photos | Produtos, condições comerciais e imagens |
+| lands / land_photos | Terrenos de terceiros e imagens |
+| sales | Uma linha por venda, incluindo regras contratadas na ocasião |
+| entry_installments | Uma linha por parcela da entrada |
+| commission_installments | Uma linha por parcela de comissão |
+| goals | Metas individuais padrão e coletivas por mês/ano |
+| invitations / sessions / password_resets | Convites, sessões e links de recuperação |
+| audit_events / land_history / sale_history / commission_history | Auditoria geral e históricos por registro |
+| login_attempts / reset_requests / admin_recoveries | Controles de acesso e recuperações administrativas |
+| schema_versions | Versão instalada da estrutura |
+
+`password_hash` não é uma senha legível; não substitua por texto simples. Para alterações comuns de usuários, use o painel do aplicativo. O editor do Neon permite consultas e alterações diretas; as regras e chaves estrangeiras continuam sendo verificadas pelo PostgreSQL.
+
+Os vínculos entre tabelas incluem `company_id`, impedindo relações entre empresas diferentes. A empresa atendida por cada instalação vem da variável de servidor `COMPANY_ID` (padrão `main`), nunca do navegador. `COMPANY_NAME` define o nome na criação inicial. Nesta etapa não há cadastro de empresas, roteamento por domínio ou editor de white label na interface. Os campos de identidade visual estão preparados no banco para a próxima etapa.
+
+A API usa transações, bloqueios por registro/recurso nas operações concorrentes e comparação de revisão nas atualizações. Não regrava um documento global. O painel ainda carrega uma visão completa da empresa; paginação e consultas específicas por tela podem ser adicionadas conforme o volume crescer.
+
+## Desenvolvimento e testes
+
+Use um PostgreSQL local separado, `LOCAL_DATABASE_URL` e as variáveis iniciais do administrador. Não use a conexão de produção nos testes. O teste integrado roda com `TEST_DATABASE_URL=... node --test server/postgres.test.mjs`, cria empresas isoladas de teste e verifica fluxos completos, valores monetários, relações, concorrência, recuperação e isolamento. Sem essa variável, apenas o teste integrado é pulado no `npm test`.
+
+A estrutura é inicializada sob bloqueio transacional apenas na primeira conexão de cada processo; a versão no banco impede apagar dados novamente em redeploys. Uma falha de configuração ou criação reverte a transação. Não reverta para versões do aplicativo anteriores à estrutura v2: elas usam o armazenamento antigo.
