@@ -1,3 +1,4 @@
+import {passwordRecovery} from './recovery.mjs';
 import {LEAD_SOURCES, clientStatus} from '../shared/sales.mjs';
 import {randomBytes,createHash} from 'node:crypto';
 import {transaction} from './store.mjs';
@@ -11,6 +12,7 @@ const now=Date.now();db.sessions=db.sessions.filter(s=>s.expires>now);db.attempt
 const action=body.action;
 db.invitations ||= [];
 
+if(['password.request','password.inspect','password.reset'].includes(action))return passwordRecovery(db,req,body);
 if(action==='info')return {demo:db.demo,registration:'invite'};
 if(action==='invite.inspect'||action==='invite.accept'){
   const v=body.data||{},token=String(v.token||'');
