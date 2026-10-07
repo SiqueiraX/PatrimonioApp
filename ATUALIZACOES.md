@@ -147,3 +147,10 @@ O site público permite alternar entre Lista e Mapa sem perder os filtros. Apena
 No painel, em Terrenos de terceiros → editar/adicionar → Localização no mapa público, é possível preencher latitude/longitude, colar um par de coordenadas decimais ou clicar e arrastar o pin. Remover localização limpa ambos os campos ao salvar. Coordenadas antigas são preservadas ao receber edições/importações que não contêm os novos campos. O banco valida o par e os limites geográficos, sem apagar dados existentes.
 
 Base vetorial OpenFreeMap/Positron, com camadas de pontos de interesse e ícones removidas; ruas e nomes de regiões permanecem para orientação. Créditos e licenças em `public/map-credits.txt`. O mapa depende da conectividade com o provedor e de WebGL; em caso de falha, há aviso e a lista permanece disponível. MapLibre é carregado apenas ao abrir o mapa. Não foi configurada chave de API nem serviço pago.
+
+
+## Links individuais e mensagens para clientes
+
+Cada terreno disponível tem um link `/imovel/terreno/ID`, e cada empreendimento ativo, `/imovel/empreendimento/ID`. Abrir ou atualizar esses endereços mostra os detalhes públicos sem login. Imóveis retirados do catálogo exibem um aviso de indisponibilidade. Os filtros permanecem ao fechar os detalhes durante a navegação.
+
+Nos detalhes do imóvel no painel e no site, “Copiar mensagem para WhatsApp” copia uma mensagem pronta com dados públicos e o link; “Copiar link do imóvel” copia somente o endereço. Há prévia da mensagem e alternativa de seleção manual quando o navegador não permite acesso à área de transferência. Não ocorre envio automático. Proprietário, contatos privados, observações internas, histórico e comissões nunca são incluídos. Ágio, saldo devedor e total estimado são identificados separadamente.

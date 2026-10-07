@@ -1,0 +1,5 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {propertyPath,propertyRoute,propertyMessage} from '../shared/sharing.mjs';
+test('individual URLs preserve identifiers and reject malformed routes',()=>{for(const kind of ['land','product']){const id='abc 12/#';assert.deepEqual(propertyRoute(propertyPath(kind,id)),{kind,id});}assert.equal(propertyRoute('/painel'),null);assert.equal(propertyRoute('/imovel/terreno/%GG'),null);});
+test('WhatsApp message includes public price and link without internal information',()=>{const l={id:'123',neighborhood:'Jardim',block:'1',lot:'2',area:300,condition:'Ágio',premium:50000,balance:null,owner:'OWNER_SECRET',contact:'CONTACT_SECRET',notes:'NOTES_SECRET',history:['HISTORY_SECRET'],percent:5};let m=propertyMessage(l,'land',{name:'Empresa'},'https://example.com');assert.ok(m.includes('Saldo devedor: sob consulta'));assert.ok(!m.includes('Total estimado'));assert.ok(m.includes('https://example.com/imovel/terreno/123'));assert.ok(!m.includes('SECRET'));m=propertyMessage({...l,balance:100000},'land',{},'https://example.com');assert.ok(m.includes('Total estimado:'));assert.ok(m.includes('150.000,00'));});
