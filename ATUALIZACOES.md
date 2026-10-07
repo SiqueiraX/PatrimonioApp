@@ -139,3 +139,11 @@ A ação pública `catalog` consulta apenas campos permitidos e registros da emp
 Filtros públicos: busca por bairro/quadra/lote/endereço, bairro, quitado/ágio, área mínima/máxima, preço mínimo/máximo e preço por m². Para ágio, os filtros de valor usam a soma do ágio com o saldo informado; sem saldo, não entram nas faixas de preço.
 
 Em Identidade visual, configure o WhatsApp público com código do país + DDD + número. O botão de interesse abre o WhatsApp com referência do imóvel; sem número cadastrado, fica oculto. A página também herda nome, logo, ícone e cores. O mapa com pins e cadastro de coordenadas fica para uma próxima etapa.
+
+## Mapa dos terrenos
+
+O site público permite alternar entre Lista e Mapa sem perder os filtros. Apenas terrenos disponíveis com latitude e longitude válidas aparecem no mapa. Os demais continuam na lista, com indicação de quantos estão sem localização. Pins usam as cores da empresa; terrenos com coordenadas idênticas ficam agrupados no mesmo pin. O cartão mostra dados públicos e abre os detalhes, onde permanece o WhatsApp white label.
+
+No painel, em Terrenos de terceiros → editar/adicionar → Localização no mapa público, é possível preencher latitude/longitude, colar um par de coordenadas decimais ou clicar e arrastar o pin. Remover localização limpa ambos os campos ao salvar. Coordenadas antigas são preservadas ao receber edições/importações que não contêm os novos campos. O banco valida o par e os limites geográficos, sem apagar dados existentes.
+
+Base vetorial OpenFreeMap/Positron, com camadas de pontos de interesse e ícones removidas; ruas e nomes de regiões permanecem para orientação. Créditos e licenças em `public/map-credits.txt`. O mapa depende da conectividade com o provedor e de WebGL; em caso de falha, há aviso e a lista permanece disponível. MapLibre é carregado apenas ao abrir o mapa. Não foi configurada chave de API nem serviço pago.

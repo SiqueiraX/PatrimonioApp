@@ -45,8 +45,11 @@ test('PostgreSQL: records, workflows, constraints, tenant isolation, rollback an
   await run('sale.create',{...sale,client:'Sem entrada',optionId:'none'},brokerCookie);
   state=(await run('goals.save',{type:'month',period:'2026-01',individual:500000,team:1500000})).result;assert.equal(state.goals[0].individual,500000);assert.equal(state.sales[0].commissions.length,12);
   await assert.rejects(run('goals.save',{type:'month',period:'2026-01',individual:1,team:1},brokerCookie),e=>e.status===403);
-  const land={neighborhood:'Bairro',block:'1',lot:'1',area:300,condition:'Quitado',price:100000,owner:'Dono',contact:'Contato',brokerId:broker.id,availability:'Disponível',photos:[]};
+  const land={neighborhood:'Bairro',block:'1',lot:'1',area:300,condition:'Quitado',price:100000,owner:'Dono',contact:'Contato',latitude:-11.8642,longitude:-55.5031,brokerId:broker.id,availability:'Disponível',photos:[]};
   await run('land.save',land,brokerCookie);await assert.rejects(run('land.save',land,brokerCookie));
+  const mapped=(await run('catalog',{},null)).result.lands[0];assert.equal(mapped.latitude,land.latitude);assert.equal(mapped.longitude,land.longitude);
+  await assert.rejects(run('land.save',{...land,lot:'bad',latitude:91},brokerCookie),e=>e.status===400);
+  await assert.rejects(pool.query('UPDATE patrimonio.lands SET longitude=NULL WHERE company_id=$1',[company]),e=>e.code==='23514');
   const other={...env,COMPANY_ID:'other-'+company};await run('info',{},null,{},other);
   const otherCookie=(await run('login',{},null,{email:env.ADMIN_EMAIL,password:env.ADMIN_PASSWORD},other)).cookie;
   const otherState=(await run('state',{},otherCookie,{},other)).result;assert.equal(otherState.sales.length,0);assert.equal(otherState.users.length,1);

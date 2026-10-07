@@ -149,3 +149,11 @@ ALTER TABLE patrimonio.companies ADD COLUMN IF NOT EXISTS favicon_url text NOT N
 ALTER TABLE patrimonio.companies ADD COLUMN IF NOT EXISTS tagline text NOT NULL DEFAULT '';
 
 ALTER TABLE patrimonio.companies ADD COLUMN IF NOT EXISTS public_whatsapp text NOT NULL DEFAULT '';
+
+ALTER TABLE patrimonio.lands ADD COLUMN IF NOT EXISTS latitude double precision;
+ALTER TABLE patrimonio.lands ADD COLUMN IF NOT EXISTS longitude double precision;
+DO $$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='lands_coordinates_valid' AND conrelid='patrimonio.lands'::regclass) THEN
+ ALTER TABLE patrimonio.lands ADD CONSTRAINT lands_coordinates_valid CHECK ((latitude IS NULL AND longitude IS NULL) OR (latitude IS NOT NULL AND longitude IS NOT NULL AND latitude BETWEEN -85.05112878 AND 85.05112878 AND longitude BETWEEN -180 AND 180));
+ END IF;
+END $$;
