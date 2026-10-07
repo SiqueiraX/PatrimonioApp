@@ -1,0 +1,3 @@
+export const landPrice=l=>l.condition==='Quitado'?l.price:l.balance==null?null:Number(l.premium)+Number(l.balance);
+export const initial={q:'',neighborhood:'',condition:'',minArea:'',maxArea:'',minPrice:'',maxPrice:'',minM2:'',maxM2:''};
+export function matchesLand(l,f){const p=landPrice(l),m=p==null?null:p/l.area;return (!f.q||[l.neighborhood,l.block,l.lot,l.address].join(' ').toLocaleLowerCase().includes(f.q.toLocaleLowerCase()))&&(!f.neighborhood||l.neighborhood===f.neighborhood)&&(!f.condition||l.condition===f.condition)&&(!f.minArea||l.area>=+f.minArea)&&(!f.maxArea||l.area<=+f.maxArea)&&(!f.minPrice||p!=null&&p>=+f.minPrice)&&(!f.maxPrice||p!=null&&p<=+f.maxPrice)&&(!f.minM2||m!=null&&m>=+f.minM2)&&(!f.maxM2||m!=null&&m<=+f.maxM2);}

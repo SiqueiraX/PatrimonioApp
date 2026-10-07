@@ -128,3 +128,14 @@ Esta etapa personaliza cada instalação, cuja empresa é selecionada no servido
 ### Ícone da aba e frase do menu
 
 A identidade visual agora possui um upload independente para o ícone da aba (PNG, JPG ou WebP, reduzido para até 64 × 64). Sem ícone próprio, a logo é usada como alternativa. O campo “Frase abaixo do nome” aceita até 120 caracteres e pode ficar vazio para ocultar o texto. As iniciais automáticas da empresa foram removidas do menu desktop. Os novos campos são adicionados à tabela de empresas sem alterar os dados existentes.
+
+
+## Site público e catálogo
+
+A página inicial `/` apresenta a landing page, vitrine de produtos ativos e lista dos terrenos com disponibilidade “Disponível”. O painel da equipe continua protegido e passa a ser acessado em `/painel`. Links existentes de convite e recuperação continuam funcionando.
+
+A ação pública `catalog` consulta apenas campos permitidos e registros da empresa selecionada no servidor. Não retorna proprietário, contato privado, observações internas, histórico, dados da equipe, vendas ou comissões. Fotos, descrição pública, localização e condições de pagamento dos imóveis disponíveis são exibidos. Registros vendidos, reservados, inativos e produtos desativados não aparecem.
+
+Filtros públicos: busca por bairro/quadra/lote/endereço, bairro, quitado/ágio, área mínima/máxima, preço mínimo/máximo e preço por m². Para ágio, os filtros de valor usam a soma do ágio com o saldo informado; sem saldo, não entram nas faixas de preço.
+
+Em Identidade visual, configure o WhatsApp público com código do país + DDD + número. O botão de interesse abre o WhatsApp com referência do imóvel; sem número cadastrado, fica oculto. A página também herda nome, logo, ícone e cores. O mapa com pins e cadastro de coordenadas fica para uma próxima etapa.

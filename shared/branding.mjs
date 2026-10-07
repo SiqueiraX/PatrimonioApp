@@ -1,3 +1,3 @@
-export const DEFAULT_BRAND={name:'Minha imobiliária',logoUrl:'',faviconUrl:'',tagline:'',primaryColor:'#005b5b',backgroundColor:'#f5f5f5',accentColor:'#f4a90d'};
+export const DEFAULT_BRAND={name:'Minha imobiliária',logoUrl:'',faviconUrl:'',tagline:'',whatsapp:'',primaryColor:'#005b5b',backgroundColor:'#f5f5f5',accentColor:'#f4a90d'};
 export function foreground(hex){const rgb=hex.slice(1).match(/../g).map(v=>{const n=parseInt(v,16)/255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;});return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2]>.179?'#102a2a':'#ffffff';}
 export function brandVariables(b){return {'--navy':b.primaryColor,'--green':b.primaryColor,'--accent':b.accentColor,'--canvas':b.backgroundColor,'--on-primary':foreground(b.primaryColor),'--on-accent':foreground(b.accentColor),'--on-canvas':foreground(b.backgroundColor),'--brand-dark':`color-mix(in srgb, ${b.primaryColor} 78%, black)`,'--brand-soft':`color-mix(in srgb, ${b.primaryColor} 9%, white)`};}

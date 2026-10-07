@@ -147,3 +147,5 @@ ALTER TABLE patrimonio.users ADD COLUMN IF NOT EXISTS photo_data_url text NOT NU
 
 ALTER TABLE patrimonio.companies ADD COLUMN IF NOT EXISTS favicon_url text NOT NULL DEFAULT '';
 ALTER TABLE patrimonio.companies ADD COLUMN IF NOT EXISTS tagline text NOT NULL DEFAULT '';
+
+ALTER TABLE patrimonio.companies ADD COLUMN IF NOT EXISTS public_whatsapp text NOT NULL DEFAULT '';

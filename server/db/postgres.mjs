@@ -1,3 +1,4 @@
+import {readCatalog} from '../catalog.mjs';
 import {publicBrand} from '../branding.mjs';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -95,7 +96,7 @@ export class Repository {
 export async function runTransaction(pool,fn,{req={headers:{}},body={action:'state'},env=process.env}={}){
  await initialize(pool,env);const c=await pool.connect(),companyId=env.COMPANY_ID||'main',action=body.action||'';
  try{
-  await c.query(action==='state'?'BEGIN ISOLATION LEVEL REPEATABLE READ':'BEGIN');const repo=new Repository(c,companyId);
+  await c.query(['state','catalog'].includes(action)?'BEGIN ISOLATION LEVEL REPEATABLE READ':'BEGIN');const repo=new Repository(c,companyId);
   const recoveryPending=env.ADMIN_RECOVERY_ID&&!(await repo.query('SELECT 1 FROM patrimonio.admin_recoveries WHERE company_id=$1 AND request_hash=$2',[digest(String(env.ADMIN_RECOVERY_ID).trim())])).rowCount;
   const authAction=action==='login'||action==='logout'||(action==='user.save'||action==='profile.save')||action.startsWith('invite.')||action.startsWith('password.');
   const locks=[];
@@ -110,6 +111,7 @@ export async function runTransaction(pool,fn,{req={headers:{}},body={action:'sta
   if(recoveryPending){const rows=await repo.load([...security,'audit_events']),db=hydrate(rows);recoverAdmin(db,env);await repo.save(rows,db);}
   const companyRow=(await repo.query('SELECT *,xmin::text AS _revision FROM patrimonio.companies WHERE id=$1')).rows[0];
   if(action==='info'){await c.query('COMMIT');return {demo:false,registration:'invite',storage:'postgres-relational',schemaVersion:3,company:publicBrand(companyRow)};}
+  if(action==='catalog'){const result=await readCatalog(repo,publicBrand(companyRow));await c.query('COMMIT');return result;}
   const publicActions=['login','invite.inspect','invite.accept','password.request','password.inspect','password.reset'];
   if(!publicActions.includes(action)){
    const cookie=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('lotea_session='))?.split('=')[1];
@@ -125,7 +127,7 @@ export async function runTransaction(pool,fn,{req={headers:{}},body={action:'sta
   const rows=await repo.load(selected(action),body),db=hydrate(rows);
   db.company=publicBrand(companyRow);
   const result=await fn(db);
-  if(action==='branding.save'){const b=db.company;const saved=await repo.query('UPDATE patrimonio.companies SET name=$2,logo_url=$3,primary_color=$4,background_color=$5,accent_color=$6,favicon_url=$7,tagline=$8 WHERE id=$1 AND xmin::text=$9',[b.name,b.logoUrl,b.primaryColor,b.backgroundColor,b.accentColor,b.faviconUrl,b.tagline,companyRow._revision]);if(!saved.rowCount)fail('A identidade visual foi alterada. Atualize a página e tente novamente.',409);}
+  if(action==='branding.save'){const b=db.company;const saved=await repo.query('UPDATE patrimonio.companies SET name=$2,logo_url=$3,primary_color=$4,background_color=$5,accent_color=$6,favicon_url=$7,tagline=$8,public_whatsapp=$9 WHERE id=$1 AND xmin::text=$10',[b.name,b.logoUrl,b.primaryColor,b.backgroundColor,b.accentColor,b.faviconUrl,b.tagline,b.whatsapp,companyRow._revision]);if(!saved.rowCount)fail('A identidade visual foi alterada. Atualize a página e tente novamente.',409);}
   if(action!=='state')await repo.save(rows,db);
   // Keep the existing UI response contract; ordinary writes affect only changed rows.
   // Full dashboard projection is a read, scoped to the server-selected company.

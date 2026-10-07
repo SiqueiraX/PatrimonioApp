@@ -61,7 +61,17 @@ test('PostgreSQL: records, workflows, constraints, tenant isolation, rollback an
   await pool.query("INSERT INTO patrimonio.password_resets(company_id,token_hash,user_id,email,password_hash,expires_at) SELECT company_id,$2,id,email,password_hash,now()+interval '30 minutes' FROM patrimonio.users WHERE company_id=$1 AND id=$3",[company,tokenHash,broker.id]);
   const resets=await Promise.allSettled([run('password.reset',{token,password:'ChangedPassword123'},null),run('password.reset',{token,password:'AnotherPassword123'},null)]);assert.equal(resets.filter(r=>r.status==='fulfilled').length,1);
   await assert.rejects(run('state',{},brokerCookie),e=>e.status===401);
-  const branding={name:'Imobiliária Teste',logoUrl:'',faviconUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAALUlEQVR4nO3OIQEAAAwCMHrSP8cfAzMxv6S9KQEBAQEBAQEBAQEBAQEBgXXgAY+21FtXi5RQAAAAAElFTkSuQmCC',tagline:'Uma frase de teste',primaryColor:'#26345b',backgroundColor:'#fafafa',accentColor:'#cc9900'};
+  const catalog=(await run('catalog',{},null)).result;
+  assert.equal(catalog.products.length,1);assert.ok(catalog.lands.length);
+  assert.deepEqual(Object.keys(catalog).sort(),['company','lands','products']);
+  for(const l of catalog.lands)for(const key of ['owner','contact','notes','history','brokerId'])assert.equal(key in l,false);
+  for(const p of catalog.products)for(const key of ['percent','payDay','saleOptions','developerId'])assert.equal(key in p,false);
+  assert.equal((await run('catalog',{},null,{},other)).result.lands.length,0);
+  await pool.query("UPDATE patrimonio.lands SET availability='Vendido' WHERE company_id=$1",[company]);
+  await pool.query('UPDATE patrimonio.products SET active=false WHERE company_id=$1',[company]);
+  const hidden=(await run('catalog',{},null)).result;assert.equal(hidden.products.length,0);assert.equal(hidden.lands.length,0);
+  await assert.rejects(run('state',{},null),e=>e.status===401);
+  const branding={name:'Imobiliária Teste',logoUrl:'',faviconUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAALUlEQVR4nO3OIQEAAAwCMHrSP8cfAzMxv6S9KQEBAQEBAQEBAQEBAQEBgXXgAY+21FtXi5RQAAAAAElFTkSuQmCC',tagline:'Uma frase de teste',whatsapp:'',primaryColor:'#26345b',backgroundColor:'#fafafa',accentColor:'#cc9900'};
   await assert.rejects(run('branding.save',branding,brokerCookie),e=>e.status===401||e.status===403);
   const branded=(await run('branding.save',{...branding,companyId:other.COMPANY_ID})).result;assert.equal(branded.company.name,branding.name);
   assert.deepEqual((await run('info',{},null)).result.company,branding);
