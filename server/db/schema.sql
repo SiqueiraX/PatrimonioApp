@@ -144,3 +144,6 @@ CREATE INDEX IF NOT EXISTS commission_history_parent ON patrimonio.commission_hi
 ALTER TABLE patrimonio.users ADD COLUMN IF NOT EXISTS cpf text NOT NULL DEFAULT '' CHECK(cpf='' OR cpf ~ '^[0-9]{11}$');
 ALTER TABLE patrimonio.users ADD COLUMN IF NOT EXISTS creci text NOT NULL DEFAULT '' CHECK(length(creci)<=40);
 ALTER TABLE patrimonio.users ADD COLUMN IF NOT EXISTS photo_data_url text NOT NULL DEFAULT '' CHECK(length(photo_data_url)<=200000);
+
+ALTER TABLE patrimonio.companies ADD COLUMN IF NOT EXISTS favicon_url text NOT NULL DEFAULT '';
+ALTER TABLE patrimonio.companies ADD COLUMN IF NOT EXISTS tagline text NOT NULL DEFAULT '';

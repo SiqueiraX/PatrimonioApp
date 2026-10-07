@@ -123,3 +123,8 @@ O upload aceita PNG, JPEG e WebP de até 10 MB; o navegador reduz a imagem para 
 A identidade é persistida na empresa e aplicada ao login, navegação, título e ícone da aba, gráficos e identificação das exportações. O assunto dos e-mails de recuperação usa o nome configurado; o remetente continua dependendo de `EMAIL_FROM`. Os dados existentes são preservados.
 
 Esta etapa personaliza cada instalação, cuja empresa é selecionada no servidor por `COMPANY_ID`. Não inclui painel global de empresas, provisionamento automático, cobrança ou configuração de domínios próprios.
+
+
+### Ícone da aba e frase do menu
+
+A identidade visual agora possui um upload independente para o ícone da aba (PNG, JPG ou WebP, reduzido para até 64 × 64). Sem ícone próprio, a logo é usada como alternativa. O campo “Frase abaixo do nome” aceita até 120 caracteres e pode ficar vazio para ocultar o texto. As iniciais automáticas da empresa foram removidas do menu desktop. Os novos campos são adicionados à tabela de empresas sem alterar os dados existentes.

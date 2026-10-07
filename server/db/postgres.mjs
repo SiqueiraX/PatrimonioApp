@@ -125,7 +125,7 @@ export async function runTransaction(pool,fn,{req={headers:{}},body={action:'sta
   const rows=await repo.load(selected(action),body),db=hydrate(rows);
   db.company=publicBrand(companyRow);
   const result=await fn(db);
-  if(action==='branding.save'){const b=db.company;const saved=await repo.query('UPDATE patrimonio.companies SET name=$2,logo_url=$3,primary_color=$4,background_color=$5,accent_color=$6 WHERE id=$1 AND xmin::text=$7',[b.name,b.logoUrl,b.primaryColor,b.backgroundColor,b.accentColor,companyRow._revision]);if(!saved.rowCount)fail('A identidade visual foi alterada. Atualize a página e tente novamente.',409);}
+  if(action==='branding.save'){const b=db.company;const saved=await repo.query('UPDATE patrimonio.companies SET name=$2,logo_url=$3,primary_color=$4,background_color=$5,accent_color=$6,favicon_url=$7,tagline=$8 WHERE id=$1 AND xmin::text=$9',[b.name,b.logoUrl,b.primaryColor,b.backgroundColor,b.accentColor,b.faviconUrl,b.tagline,companyRow._revision]);if(!saved.rowCount)fail('A identidade visual foi alterada. Atualize a página e tente novamente.',409);}
   if(action!=='state')await repo.save(rows,db);
   // Keep the existing UI response contract; ordinary writes affect only changed rows.
   // Full dashboard projection is a read, scoped to the server-selected company.
