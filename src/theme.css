@@ -1,0 +1,49 @@
+/* Personal display preference. Brand colors and original photographs stay intact. */
+.theme-toggle{flex-shrink:0;border-radius:24px;min-height:44px;gap:8px;background:transparent;color:var(--on-canvas);border-color:currentColor}
+.theme-toggle svg{flex-shrink:0}.theme-toggle:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.topbar-actions{display:flex;align-items:center;gap:18px}.topbar strong{color:var(--on-canvas)}
+.auth-theme-toggle{position:absolute;right:24px;top:20px;z-index:5}
+.public-header nav{margin-left:auto}
+@media(max-width:760px){.topbar .theme-toggle span{display:none}.topbar .theme-toggle{padding:10px}.topbar .topbar-actions{gap:8px}.auth-theme-toggle{right:16px;top:12px}.registration-page{padding-top:80px}}
+@media(max-width:600px){.public-header .public-brand{max-width:calc(100% - 62px)}.public-header>.theme-toggle{margin-left:auto;order:0;padding:10px}.public-header>.theme-toggle span{display:none}.public-header nav{order:1}.public-header{gap:16px}}
+html[data-theme=dark]{--canvas:#101b1e!important;--on-canvas:#e6efee!important;--brand-soft:#213438!important;--line:#34494c;--muted:#a7bcbd;--surface:#19282c;--raised:#22363b;--ink:#e6efee;--soft-ink:#afc3c3;--brand-readable:color-mix(in srgb,var(--navy) 30%,#d3f7ef);background:var(--canvas);color:var(--ink)}
+html[data-theme=dark] .public-site{--public-ink:var(--ink);--public-muted:var(--soft-ink)}
+html[data-theme=dark] :is(.panel,.modal,.modal>header,.form-footer,.metric:not(.featured),.property-card,.goal-card,.registration-card,.login,.public-product,.public-land,.public-filters,.public-ranges,.public-detail,.public-detail>header,.map-view-toggle){background:var(--surface);color:var(--ink);border-color:var(--line)}
+html[data-theme=dark] :is(button,input,textarea,select){color:var(--ink);border-color:var(--line)}
+html[data-theme=dark] :is(input,textarea,select,.select-icon,.search-input){background:var(--surface);color:var(--ink);border-color:var(--line)}
+html[data-theme=dark] :is(input,textarea)::placeholder{color:#95acad;opacity:1}
+html[data-theme=dark] button{background-color:var(--raised)}
+html[data-theme=dark] button:hover{background-color:#304a50}
+html[data-theme=dark] :is(.icon-btn,.text-btn,.profile-open,.registration-link,.public-text-button,.public-results button,.public-detail header button,.period-tabs button,.map-view-toggle button,.theme-toggle){background:transparent}
+html[data-theme=dark] :is(.primary,.property-share button:first-child,.public-land-price button,.land-map-popup button,.period-tabs button.active,.map-view-toggle button[aria-pressed=true]){background:var(--navy);color:var(--on-primary)}
+html[data-theme=dark] :is(.primary,.property-share button:first-child,.public-land-price button,.land-map-popup button):hover{background:var(--brand-dark)}
+html[data-theme=dark] :is(.sidebar nav button,.mobile-dock button){background:transparent;color:var(--on-primary)}
+html[data-theme=dark] .sidebar nav button.active{background:color-mix(in srgb,var(--on-primary) 12%,transparent)}
+html[data-theme=dark] .mobile-dock button.active{background:var(--accent);color:var(--on-accent)}
+html[data-theme=dark] .mobile-dock button.active svg{color:inherit}
+html[data-theme=dark] :is(.field,.checkbox,.field-label,.photo-field>span,.cell-name,.portfolio-count strong,.brand-summary,.goal-amount strong,.upload-zone strong){color:var(--ink)}
+html[data-theme=dark] :is(.metric>div,.commission-lines span,.empty p,.portfolio-count,.card-location,.lot-meta,.balance-note,.card-bottom,.card-description,.form-help,.detail-title p,.detail-note p,.detail-description,dt,.timeline-heading time,.timeline-event p,.sale-commission-header p,.registration-card p,.pie-figure figcaption,.goals-context p,.goals-context label,.goal-card h3,.goal-amount span,.goal-card-top small,.goal-card-bottom,.profile-photo-editor p,.brand-logo-upload small,.footer){color:var(--soft-ink)}
+html[data-theme=dark] :is(.public-hero em,.public-placeholder,.developer-label,.link,.registration-link,.import-steps .active,.condition-summary,.pie-figure figcaption strong,.goal-card-top>span,.goal-card-top svg,.goal-card-bottom strong,.profile-upload,.registration-card .brand,.login-mobile .brand){color:var(--brand-readable)}
+html[data-theme=dark] :is(th,.inline-form,.condition-card,.rule-examples,.notice,.calculation,.sale-rule-preview,.goal-card.team-goal,.public-facts,.dock-more>button,.cover-placeholder,.cover-placeholder.product,.upload-zone,.count,.avatar,.mini-icon){background:var(--raised);color:var(--soft-ink);border-color:var(--line)}
+html[data-theme=dark] .sale-rule-preview p{color:var(--soft-ink)}
+html[data-theme=dark] :is(.rank-bar,.progress-track,.lead-track,.goal-track,.team-goal .goal-track){background:#3b5054}
+html[data-theme=dark] :is(.property-share,.ranking-row,.public-land-meta span+span,.public-detail>header,.public-text-button,.location-fields){border-color:var(--line)}
+html[data-theme=dark] .badge{background:#30434c;color:#d0e1e9}
+html[data-theme=dark] .badge.green{background:#214438;color:#a1e5c5}
+html[data-theme=dark] :is(.badge.amber,.alert-strip,.map-warning){background:#433821;color:#f2d394;border-color:#665535}
+html[data-theme=dark] :is(.alert-strip strong,.alert-strip p,.alert-strip button,.alert-symbol){color:#f2d394}
+html[data-theme=dark] :is(.badge.red,.error){background:#482d2b;color:#ffbbb0;border-color:#72504a}
+html[data-theme=dark] :is(.danger,.red-text,.cancel-zone p,.alert-item p){color:#ffbbb0}
+html[data-theme=dark] .public-placeholder{background-image:linear-gradient(30deg,transparent 48%,#ffffff0d 49%,#ffffff0d 51%,transparent 52%)}
+html[data-theme=dark] :is(.leaflet-popup-content-wrapper,.leaflet-popup-tip,.leaflet-bar a){background:var(--surface);color:var(--ink)}
+html[data-theme=dark] .land-map-popup{color:var(--ink)}
+html[data-theme=dark] .land-map-popup section+section{border-color:var(--line)}
+html[data-theme=dark] .land-map .leaflet-control-attribution{background:#19282cee;color:var(--soft-ink)}
+html[data-theme=dark] .land-map .leaflet-control-attribution a{color:#9bd2eb!important}
+/* Keep the brand editor's preview faithful to its configured palette. */
+html[data-theme=dark] .brand-preview{color:var(--on-canvas)}
+html[data-theme=dark] .registration-page{background:var(--canvas)}
+html[data-theme=dark] .range-filters{background:var(--surface);border-color:var(--line)}
+html[data-theme=dark] .pie-figure circle[fill="#e6ecea"]{fill:var(--raised)}
+html[data-theme=dark] .pie-figure path[stroke="white"]{stroke:var(--surface)}
+@media(min-width:601px) and (max-width:1000px){.public-header{flex-wrap:wrap;gap:18px}.public-header nav{order:1;width:100%;justify-content:flex-end}.public-header>.theme-toggle{margin-left:auto}}
