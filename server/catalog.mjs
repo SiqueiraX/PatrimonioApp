@@ -1,3 +1,4 @@
+import {neighborhoodPhotos} from '../shared/neighborhoods.mjs';
 // Explicit allowlist: never return private rows or spread internal entities.
 export function publicProduct(p){return {id:p.id,name:p.name,location:p.location,description:p.description,launch:p.launch,construction:p.construction,photos:p.photos||[]};}
 export function publicLand(l){return {id:l.id,neighborhood:l.neighborhood,block:l.block,lot:l.lot,area:Number(l.area),condition:l.condition,price:l.price==null?null:Number(l.price),premium:l.premium==null?null:Number(l.premium),balance:l.balance==null?null:Number(l.balance),balanceDate:l.balanceDate||'',address:l.address,latitude:l.latitude??null,longitude:l.longitude??null,description:l.description,paymentTerms:l.paymentTerms,paymentOptions:l.paymentOptions||[],availability:l.availability,photos:l.photos||[]};}
@@ -6,5 +7,7 @@ export async function readCatalog(repo,company){
  const lands=(await repo.query("SELECT id,neighborhood,block,lot,area,condition,price,premium,balance,latitude,longitude,balance_date AS \"balanceDate\",address,description,payment_terms AS \"paymentTerms\",payment_options AS \"paymentOptions\",availability FROM patrimonio.lands WHERE company_id=$1 AND availability='Disponível' ORDER BY neighborhood,block,lot,id")).rows;
  const pp=(await repo.query('SELECT f.product_id,f.data_url FROM patrimonio.product_photos f JOIN patrimonio.products p ON p.company_id=f.company_id AND p.id=f.product_id WHERE f.company_id=$1 AND p.active=true ORDER BY f.position')).rows;
  const lp=(await repo.query("SELECT f.land_id,f.data_url FROM patrimonio.land_photos f JOIN patrimonio.lands l ON l.company_id=f.company_id AND l.id=f.land_id WHERE f.company_id=$1 AND l.availability='Disponível' ORDER BY f.position")).rows;
- return {company,products:products.map(p=>publicProduct({...p,photos:pp.filter(f=>f.product_id===p.id).map(f=>f.data_url)})),lands:lands.map(l=>publicLand({...l,photos:lp.filter(f=>f.land_id===l.id).map(f=>f.data_url)}))};
+ const neighborhoods=(await repo.query('SELECT n.id,n.name,f.data_url FROM patrimonio.neighborhoods n LEFT JOIN patrimonio.neighborhood_photos f ON f.company_id=n.company_id AND f.neighborhood_id=n.id WHERE n.company_id=$1 ORDER BY n.id,f.position')).rows;
+ const groups=[...new Set(neighborhoods.map(n=>n.id))].map(id=>({name:neighborhoods.find(n=>n.id===id).name,photos:neighborhoods.filter(n=>n.id===id&&n.data_url).map(n=>n.data_url)}));
+ return {company,products:products.map(p=>publicProduct({...p,photos:pp.filter(f=>f.product_id===p.id).map(f=>f.data_url)})),lands:lands.map(l=>publicLand({...l,photos:neighborhoodPhotos({...l,photos:lp.filter(f=>f.land_id===l.id).map(f=>f.data_url)},groups)}))};
 }

@@ -48,6 +48,22 @@ test('PostgreSQL: records, workflows, constraints, tenant isolation, rollback an
   const land={neighborhood:'Bairro',block:'1',lot:'1',area:300,condition:'Quitado',price:100000,owner:'Dono',contact:'Contato',latitude:-11.8642,longitude:-55.5031,brokerId:broker.id,availability:'Disponível',photos:[]};
   await run('land.save',land,brokerCookie);await assert.rejects(run('land.save',land,brokerCookie));
   const mapped=(await run('catalog',{},null)).result.lands[0];assert.equal(mapped.latitude,land.latitude);assert.equal(mapped.longitude,land.longitude);
+  const photo='data:image/png;base64,aGVsbG8=';
+  await assert.rejects(run('neighborhood.save',{name:'Bairro',photos:[photo]},brokerCookie),e=>e.status===403);
+  state=(await run('neighborhood.save',{name:'Bairro',photos:[photo]})).result;
+  const neighborhood=state.neighborhoods[0];assert.equal(neighborhood.photos[0],photo);
+  assert.deepEqual((await run('catalog',{},null)).result.lands[0].photos,[photo]);
+  assert.deepEqual(state.lands[0].photos,[]); // inheritance never overwrites the lot's original photos
+  await assert.rejects(run('neighborhood.save',{name:'  BÁIRRO ',photos:[]}),e=>e.status===400);
+  state=(await run('neighborhood.save',{...neighborhood,name:'Bairro Novo'})).result;
+  assert.equal(state.lands[0].neighborhood,'Bairro Novo');
+  assert.deepEqual((await run('catalog',{},null)).result.lands[0].photos,[photo]);
+  const ownPhoto='data:image/png;base64,d29ybGQ=';
+  await run('land.save',{...state.lands[0],photos:[ownPhoto]},brokerCookie);
+  assert.deepEqual((await run('catalog',{},null)).result.lands[0].photos,[ownPhoto]);
+  await run('land.save',{...state.lands[0],photos:[]},brokerCookie);
+  await run('neighborhood.save',{...neighborhood,name:'Bairro Novo',photos:[]});
+  assert.deepEqual((await run('catalog',{},null)).result.lands[0].photos,[]);
   await assert.rejects(run('land.save',{...land,lot:'bad',latitude:91},brokerCookie),e=>e.status===400);
   await assert.rejects(pool.query('UPDATE patrimonio.lands SET longitude=NULL WHERE company_id=$1',[company]),e=>e.code==='23514');
   const other={...env,COMPANY_ID:'other-'+company};await run('info',{},null,{},other);

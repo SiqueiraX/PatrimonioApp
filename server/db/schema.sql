@@ -157,3 +157,14 @@ DO $$ BEGIN
  ALTER TABLE patrimonio.lands ADD CONSTRAINT lands_coordinates_valid CHECK ((latitude IS NULL AND longitude IS NULL) OR (latitude IS NOT NULL AND longitude IS NOT NULL AND latitude BETWEEN -85.05112878 AND 85.05112878 AND longitude BETWEEN -180 AND 180));
  END IF;
 END $$;
+
+CREATE TABLE IF NOT EXISTS patrimonio.neighborhoods (
+ company_id text NOT NULL REFERENCES patrimonio.companies(id), id text NOT NULL,
+ name text NOT NULL, name_key text NOT NULL,
+ PRIMARY KEY(company_id,id), UNIQUE(company_id,name_key)
+);
+CREATE TABLE IF NOT EXISTS patrimonio.neighborhood_photos (
+ company_id text NOT NULL, neighborhood_id text NOT NULL, position integer NOT NULL CHECK(position BETWEEN 0 AND 4), data_url text NOT NULL,
+ PRIMARY KEY(company_id,neighborhood_id,position),
+ FOREIGN KEY(company_id,neighborhood_id) REFERENCES patrimonio.neighborhoods(company_id,id) ON DELETE CASCADE
+);

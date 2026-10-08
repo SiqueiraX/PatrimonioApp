@@ -12,6 +12,8 @@ function table(name,list,fields,{key=['id'],dates=[],times=[],numbers=[],aliases
 }
 export const tables=[
  table('users','users','id name email password role active cpf creci photo',{aliases:{password:'password_hash',photo:'photo_data_url'}}),
+ table('neighborhoods','neighborhoods','id name nameKey'),
+ table('neighborhood_photos','neighborhoodPhotos','neighborhoodId position dataUrl',{key:['neighborhood_id','position'],numbers:['position']}),
  table('developers','developers','id name contact'),
  table('products','products','id developerId name location description mapUrl launch construction active percent payDay',{aliases:{percent:'commission_percent',payDay:'payment_day'},numbers:['percent','payDay']}),
  table('product_conditions','conditions','productId id entryMode entryInstallments commissionMode commissionInstallments',{key:['product_id','id'],numbers:['entryInstallments','commissionInstallments']}),
@@ -31,20 +33,22 @@ export const tables=[
  ...[['audit_events','audit',''],['land_history','landHistory','landId'],['sale_history','saleHistory','saleId'],['commission_history','commissionHistory','commissionId']].map(([name,list,parent])=>table(name,list,`id ${parent} at author authorId action details`))
 ];
 export const byName=Object.fromEntries(tables.map(t=>[t.name,t]));
-export function empty(){return {demo:false,users:[],developers:[],products:[],lands:[],sales:[],goals:[],invitations:[],sessions:[],attempts:[],passwordResets:[],resetRequests:[],adminRecoveries:[],audit:[]};}
+export function empty(){return {demo:false,users:[],neighborhoods:[],developers:[],products:[],lands:[],sales:[],goals:[],invitations:[],sessions:[],attempts:[],passwordResets:[],resetRequests:[],adminRecoveries:[],audit:[]};}
 export function hydrate(rows){
  const lists=Object.fromEntries(tables.map(t=>[t.list,(rows[t.name]||[]).map(r=>t.decode(r))]));
  const db={...empty(),...lists};
  db.adminRecoveries=lists.recoveries.map(r=>r.requestHash);
+ for(const n of db.neighborhoods)n.photos=lists.neighborhoodPhotos.filter(p=>p.neighborhoodId===n.id).sort((a,b)=>a.position-b.position).map(p=>p.dataUrl);
  for(const p of db.products){p.saleOptions=lists.conditions.filter(o=>o.productId===p.id).map(({productId,...o})=>o);p.photos=lists.productPhotos.filter(o=>o.productId===p.id).sort((a,b)=>a.position-b.position).map(o=>o.dataUrl);}
  for(const l of db.lands){l.photos=lists.landPhotos.filter(o=>o.landId===l.id).sort((a,b)=>a.position-b.position).map(o=>o.dataUrl);l.history=lists.landHistory.filter(o=>o.landId===l.id).map(({landId,...o})=>o);delete l.duplicateKey;}
  for(const s of db.sales){s.rule={percent:s.percent,payDay:s.payDay,installments:s.commissionInstallments};s.paymentPlan={id:s.optionId,entryMode:s.entryMode,entryInstallments:s.entryInstallments,commissionMode:s.commissionMode,commissionInstallments:s.commissionInstallments};s.entryPayments=lists.entries.filter(o=>o.saleId===s.id).map(({saleId,...o})=>o);s.commissions=lists.commissions.filter(o=>o.saleId===s.id).map(({saleId,...o})=>({...o,history:lists.commissionHistory.filter(h=>h.commissionId===o.id).map(({commissionId,...h})=>h)}));s.history=lists.saleHistory.filter(o=>o.saleId===s.id).map(({saleId,...o})=>o);}
  return db;
 }
 export function flatten(db){
- const lists={...db,conditions:[],productPhotos:[],landPhotos:[],entries:[],commissions:[],landHistory:[],saleHistory:[],commissionHistory:[],recoveries:db.adminRecoveries.map(requestHash=>({requestHash}))};
+ const lists={...db,conditions:[],neighborhoodPhotos:[],productPhotos:[],landPhotos:[],entries:[],commissions:[],landHistory:[],saleHistory:[],commissionHistory:[],recoveries:db.adminRecoveries.map(requestHash=>({requestHash}))};
  lists.lands=db.lands.map(l=>({...l,duplicateKey:duplicateKey(l)}));
  lists.sales=db.sales.map(s=>({...s,optionId:s.paymentPlan.id,...s.paymentPlan,id:s.id,percent:s.rule.percent,payDay:s.rule.payDay,commissionInstallments:s.rule.installments}));
+ for(const n of db.neighborhoods||[])lists.neighborhoodPhotos.push(...n.photos.map((dataUrl,position)=>({neighborhoodId:n.id,position,dataUrl})));
  for(const p of db.products){lists.conditions.push(...p.saleOptions.map(o=>({...o,productId:p.id})));lists.productPhotos.push(...p.photos.map((dataUrl,position)=>({productId:p.id,position,dataUrl})));}
  for(const l of db.lands){lists.landPhotos.push(...l.photos.map((dataUrl,position)=>({landId:l.id,position,dataUrl})));lists.landHistory.push(...l.history.map(h=>({...h,landId:l.id})));}
  for(const s of db.sales){lists.entries.push(...s.entryPayments.map(p=>({...p,saleId:s.id})));lists.commissions.push(...s.commissions.map(p=>({...p,saleId:s.id})));lists.saleHistory.push(...s.history.map(h=>({...h,saleId:s.id})));for(const p of s.commissions)lists.commissionHistory.push(...p.history.map(h=>({...h,commissionId:p.id})));}

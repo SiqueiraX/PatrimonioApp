@@ -1,10 +1,11 @@
+import {neighborhoodKey} from '../shared/neighborhoods.mjs';
 import {validateBrand} from './branding.mjs';
 import {validateProfile} from './profile.mjs';
 import {passwordRecovery,passwordValue} from './recovery.mjs';
 import {LEAD_SOURCES, clientStatus} from '../shared/sales.mjs';
 import {randomBytes,createHash} from 'node:crypto';
 import {transaction} from './store.mjs';
-import {id,fail,text,num,date,choice,hash,verify,validateLand,validateProduct,validateSale,validateGoal,rules,scoped,publicUser,audit,duplicateKey,today,money} from './domain.mjs';
+import {id,fail,photos,text,num,date,choice,hash,verify,validateLand,validateProduct,validateSale,validateGoal,rules,scoped,publicUser,audit,duplicateKey,today,money} from './domain.mjs';
 const digest=s=>createHash('sha256').update(s).digest('hex');
 function manager(u){if(u.role!=='Gestor')fail('Somente gestores podem realizar esta ação.',403);}
 function ownedSale(db,u,sid){const s=db.sales.find(s=>s.id===sid);if(!s||u.role!=='Gestor'&&s.brokerId!==u.id)fail('Venda não encontrada.',404);return s;}
@@ -82,6 +83,13 @@ const old=db.lands.find(l=>l.id===v.id);if(v.id&&!old)fail('Terreno não encontr
 }else if(action==='land.import'){
 if(!Array.isArray(v.rows)||v.rows.length>2000)fail('Importe até 2.000 registros por vez.');choice(v.strategy,['skip','update'],'Tratamento de duplicidades');let imported=0,updated=0,skipped=0,errors=[];for(let i=0;i<v.rows.length;i++){try{const raw=v.rows[i],valid=validateLand({...raw,brokerId:raw.brokerId||user.id,availability:raw.availability||'Disponível',photos:raw.photos||[]},db,user),old=db.lands.find(l=>duplicateKey(l)===duplicateKey(valid));if(old&&v.strategy==='skip'){skipped++;continue;}if(old){if(user.role!=='Gestor'&&old.brokerId!==user.id)fail('Sem permissão para atualizar este terreno.');const previous={...old};if(!Object.hasOwn(raw,'latitude')&&!Object.hasOwn(raw,'longitude')){valid.latitude=old.latitude;valid.longitude=old.longitude;}Object.assign(old,valid);old.history.unshift(audit(user,'Atualizado por importação',JSON.stringify({antes:previous,novo:valid},(key,value)=>key==='photos'||key==='history'?undefined:value)));updated++;}else{db.lands.unshift({...valid,id:id(),history:[audit(user,'Importado de planilha')]});imported++;}}catch(e){errors.push({row:i+2,message:e.message});}}event(db,user,'Planilha importada',`${imported} novos, ${updated} atualizados, ${skipped} ignorados, ${errors.length} erros.`);return {...scoped(db,user),importResult:{imported,updated,skipped,errors}};
 }else if(action==='product.save'){manager(user);const valid=validateProduct(v,db),old=db.products.find(p=>p.id===v.id);if(v.id&&!old)fail('Produto não encontrado.',404);event(db,user,old?'Produto atualizado':'Produto cadastrado',JSON.stringify({antes:old,depois:valid},(key,value)=>key==='photos'?undefined:value));if(old)Object.assign(old,valid);else db.products.push({...valid,id:id()});
+}else if(action==='neighborhood.save'){
+ manager(user);db.neighborhoods ||= [];
+ const name=text(v.name,'Bairro'),nameKey=neighborhoodKey(name),valid={name,nameKey,photos:photos(v.photos)},old=db.neighborhoods.find(n=>n.id===v.id);
+ if(v.id&&!old)fail('Bairro não encontrado.',404);
+ if(db.neighborhoods.some(n=>n.id!==v.id&&n.nameKey===nameKey))fail('Este bairro já está cadastrado. Edite suas fotos no cadastro existente.');
+ if(old){for(const l of db.lands)if(neighborhoodKey(l.neighborhood)===old.nameKey)l.neighborhood=name;Object.assign(old,valid);}else db.neighborhoods.push({...valid,id:id()});
+ event(db,user,old?'Bairro atualizado':'Bairro cadastrado',name);
 }else if(action==='developer.save'){manager(user);const valid={name:text(v.name,'Nome'),contact:text(v.contact,'Contato')},old=db.developers.find(d=>d.id===v.id);if(v.id&&!old)fail('Loteadora não encontrada.',404);event(db,user,old?'Loteadora atualizada':'Loteadora cadastrada',JSON.stringify({antes:old,depois:valid}));if(old)Object.assign(old,valid);else db.developers.push({...valid,id:id()});
 }else if(action==='sale.create'){const valid=validateSale(v,db,user);valid.id=id();valid.history.push(audit(user,'Venda registrada'));db.sales.unshift(valid);event(db,user,'Venda registrada',valid.client);
 }else if(action==='sale.update'){

@@ -6,7 +6,7 @@ import {hash,fail,scoped} from '../domain.mjs';
 import {recoverAdmin} from '../recovery.mjs';
 import {tables,byName,hydrate,flatten,empty} from './records.mjs';
 const digest=s=>createHash('sha256').update(s).digest('hex');
-const business=['developers','products','product_conditions','product_photos','lands','land_photos','sales','entry_installments','commission_installments','goals','land_history','sale_history','commission_history'];
+const business=['neighborhoods','neighborhood_photos','developers','products','product_conditions','product_photos','lands','land_photos','sales','entry_installments','commission_installments','goals','land_history','sale_history','commission_history'];
 const security=['users','sessions','login_attempts','invitations','password_resets','reset_requests','admin_recoveries'];
 const initializations=new WeakMap();
 export async function initialize(pool,env=process.env){
@@ -37,6 +37,7 @@ function selected(action){
  if(action.startsWith('invite.')||action.startsWith('password.')||action==='logout'||(action==='user.save'||action==='profile.save'))return [...security,'audit_events'];
  if(action==='branding.save')return ['users','sessions','audit_events'];
  if(action==='goals.save')return ['users','sessions','goals','audit_events'];
+ if(action==='neighborhood.save')return ['users','sessions','neighborhoods','neighborhood_photos','lands','land_photos','land_history','audit_events'];
  if(action==='developer.save')return ['users','sessions','developers','audit_events'];
  if(action==='product.save')return ['users','sessions','developers','products','product_conditions','product_photos','audit_events'];
  if(action.startsWith('land.'))return ['users','sessions','lands','land_photos','land_history','audit_events'];
@@ -103,7 +104,7 @@ export async function runTransaction(pool,fn,{req={headers:{}},body={action:'sta
   if(authAction||recoveryPending)locks.push('security');
   if(action.startsWith('sale.')||action==='entry.pay'||action==='commission.receive')locks.push(action==='sale.create'?'product:'+body.data?.productId:'sale:'+(body.data?.saleId||body.data?.id));
   if(action==='product.save')locks.push('product:'+(body.data?.id||'new'));
-  if(action.startsWith('land.'))locks.push('lands');
+  if(action.startsWith('land.')||action==='neighborhood.save')locks.push('lands');
   if(action==='branding.save')locks.push('branding');
   if(action==='goals.save')locks.push('goal:'+body.data?.type+':'+body.data?.period);
   if(action==='developer.save')locks.push('developer:'+(body.data?.id||'new'));
