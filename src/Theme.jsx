@@ -10,4 +10,5 @@ export function ThemeProvider({children}){
  function toggle(){const next=theme==='dark'?'light':'dark';try{localStorage.setItem(key,next);}catch{}setTheme(next);}
  return <ThemeContext.Provider value={{theme,toggle}}>{children}</ThemeContext.Provider>;
 }
+export const useTheme=()=>useContext(ThemeContext);
 export default function ThemeToggle({className=''}){const {theme,toggle}=useContext(ThemeContext);const dark=theme==='dark',label=dark?'Ativar modo claro':'Ativar modo escuro';return <button type="button" className={'theme-toggle '+className} onClick={toggle} aria-label={label} aria-pressed={dark} title={label}>{dark?<Sun size={19}/>:<Moon size={19}/>}<span>{dark?'Modo claro':'Modo escuro'}</span></button>;}

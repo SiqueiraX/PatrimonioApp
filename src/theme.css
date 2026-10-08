@@ -47,3 +47,5 @@ html[data-theme=dark] .range-filters{background:var(--surface);border-color:var(
 html[data-theme=dark] .pie-figure circle[fill="#e6ecea"]{fill:var(--raised)}
 html[data-theme=dark] .pie-figure path[stroke="white"]{stroke:var(--surface)}
 @media(min-width:601px) and (max-width:1000px){.public-header{flex-wrap:wrap;gap:18px}.public-header nav{order:1;width:100%;justify-content:flex-end}.public-header>.theme-toggle{margin-left:auto}}
+
+html[data-theme=dark] .land-map{background:#152327}

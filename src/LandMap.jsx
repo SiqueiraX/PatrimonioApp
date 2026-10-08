@@ -1,3 +1,4 @@
+import {useTheme} from './Theme.jsx';
 import React,{useEffect,useRef,useState} from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -8,18 +9,20 @@ import './map.css';
 const cash=v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
 const pin=(count=1)=>L.divIcon({className:'company-map-pin',html:`<span>${count>1?'<b>'+count+'</b>':'<i></i>'}</span>`,iconSize:[38,46],iconAnchor:[19,44],popupAnchor:[0,-40]});
 function MapCanvas({lands=[],onDetails,point,onPick}){
+ const {theme}=useTheme(),themeRef=useRef(theme),baseMap=useRef();themeRef.current=theme;
  const el=useRef(),map=useRef(),layer=useRef(),actions=useRef({onDetails,onPick}),[failed,setFailed]=useState(false);
  actions.current={onDetails,onPick};
  useEffect(()=>{
   const m=L.map(el.current,{scrollWheelZoom:false,maxZoom:19,minZoom:2}).setView([-14,-54],4);map.current=m;
   let disposed=false;
   m.attributionControl.addAttribution('<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> · <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a> · <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a> · <a href="/map-credits.txt" target="_blank" rel="noopener noreferrer">Estilo Positron</a>');
-  Promise.all([import('maplibre-gl'),import('@maplibre/maplibre-gl-leaflet')]).then(([gl,plugin])=>{if(disposed)return;gl.setWorkerUrl(workerUrl);const base=plugin.maplibreGL({style:'/property-map-style.json',attributionControl:false}).addTo(m);base.getMaplibreMap().on('error',()=>{if(!disposed)setFailed(true);});}).catch(()=>{if(!disposed)setFailed(true);});
+  Promise.all([import('maplibre-gl'),import('@maplibre/maplibre-gl-leaflet')]).then(([gl,plugin])=>{if(disposed)return;gl.setWorkerUrl(workerUrl);const base=plugin.maplibreGL({style:themeRef.current==='dark'?'/property-map-dark-style.json':'/property-map-style.json',attributionControl:false}).addTo(m);baseMap.current=base.getMaplibreMap();baseMap.current.on('error',()=>{if(!disposed)setFailed(true);});}).catch(()=>{if(!disposed)setFailed(true);});
   layer.current=L.layerGroup().addTo(m);
   m.on('click',e=>actions.current.onPick?.({latitude:+e.latlng.lat.toFixed(7),longitude:+e.latlng.wrap().lng.toFixed(7)}));
   const resize=new ResizeObserver(()=>m.invalidateSize());resize.observe(el.current);
-  return()=>{disposed=true;resize.disconnect();m.remove();map.current=null;};
+  return()=>{disposed=true;resize.disconnect();baseMap.current=null;m.remove();map.current=null;};
  },[]);
+ useEffect(()=>{baseMap.current?.setStyle(theme==='dark'?'/property-map-dark-style.json':'/property-map-style.json');},[theme]);
  const key=JSON.stringify(onPick?point:lands.map(l=>[l.id,l.latitude,l.longitude,l.neighborhood,l.block,l.lot,l.area,l.condition,l.price,l.premium,l.photos?.[0]]));
  useEffect(()=>{
   const m=map.current,g=layer.current;if(!m||!g)return;g.clearLayers();
