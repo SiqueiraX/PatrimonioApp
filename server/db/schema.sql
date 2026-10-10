@@ -168,3 +168,14 @@ CREATE TABLE IF NOT EXISTS patrimonio.neighborhood_photos (
  PRIMARY KEY(company_id,neighborhood_id,position),
  FOREIGN KEY(company_id,neighborhood_id) REFERENCES patrimonio.neighborhoods(company_id,id) ON DELETE CASCADE
 );
+
+ALTER TABLE patrimonio.sales ALTER COLUMN product_id DROP NOT NULL;
+ALTER TABLE patrimonio.sales ALTER COLUMN developer_id DROP NOT NULL;
+ALTER TABLE patrimonio.sales ADD COLUMN IF NOT EXISTS sale_type text NOT NULL DEFAULT 'product' CHECK(sale_type IN ('product','third_party'));
+ALTER TABLE patrimonio.sales ADD COLUMN IF NOT EXISTS land_id text;
+DO $$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='sales_land_company_fk' AND conrelid='patrimonio.sales'::regclass) THEN
+  ALTER TABLE patrimonio.sales ADD CONSTRAINT sales_land_company_fk FOREIGN KEY(company_id,land_id) REFERENCES patrimonio.lands(company_id,id);
+  ALTER TABLE patrimonio.sales ADD CONSTRAINT sales_source_check CHECK((sale_type='product' AND product_id IS NOT NULL AND developer_id IS NOT NULL AND land_id IS NULL) OR (sale_type='third_party' AND product_id IS NULL AND developer_id IS NULL));
+ END IF;
+END $$;

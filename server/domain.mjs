@@ -59,13 +59,24 @@ export function entrySchedule(amount,count,firstDue,firstPaidAt='') {
     return {id:id(),number:i+1,amount:(i===count-1?cents-base*i:base)/100,due,paidAt:i===0?firstPaidAt:''};
   });
 }
-export function validateSale(v,db,user){
-  const p=db.products.find(p=>p.id===v.productId&&p.active);
-  if(!p)fail('Selecione um produto ativo.');
+export function validateSale(v,db,user,existing=null){
+  const saleType=choice(v.saleType||'product',['product','third_party'],'Tipo de venda');
+  const sameProduct=existing&&saleType==='product'&&existing.saleType!=='third_party'&&v.productId===existing.productId&&v.optionId===existing.paymentPlan.id;
+  let p,option,land=null;
+  if(saleType==='third_party'){
+    land=v.landId?(db.lands||[]).find(l=>l.id===v.landId):null;
+    if(v.landId&&!land)fail('Terreno não encontrado.');
+    option=validateOptions([{id:'individual',entryMode:v.entryMode||'none',entryInstallments:v.entryInstallments,commissionMode:'fixed',commissionInstallments:v.installments}])[0];
+    p={id:null,name:land?land.neighborhood:text(v.productName,'Bairro / identificação do imóvel'),developerId:null,percent:v.percent,payDay:v.payDay};
+  }else{
+    p=db.products.find(p=>p.id===v.productId&&(p.active||sameProduct));
+    if(!p)fail('Selecione um produto ativo.');
+    option=sameProduct?existing.paymentPlan:saleOptions(p).find(o=>o.id===v.optionId);
+    if(!option)fail('Selecione uma condição de venda disponível neste produto.');
+    if(sameProduct)p={...p,percent:existing.rule.percent,payDay:existing.rule.payDay};
+  }
   const brokerId=user.role==='Corretor'?user.id:v.brokerId;
-  if(!db.users.some(u=>u.id===brokerId&&u.active))fail('Corretor inválido.');
-  const option=saleOptions(p).find(o=>o.id===v.optionId);
-  if(!option)fail('Selecione uma condição de venda disponível neste produto.');
+  if(!db.users.some(u=>u.id===brokerId&&(u.active||existing?.brokerId===u.id)))fail('Corretor inválido.');
   const leadSource=choice(v.leadSource,LEAD_SOURCES,'Origem do lead');
   const contract=choice(v.contract,['Aguardando assinatura','Assinado'],'Contrato'),saleDate=date(v.date,'Data da venda'),signedAt=date(v.signedAt,'Assinatura',true);
   const paidAt=option.entryMode==='none'?'':date(v.paidAt,'Pagamento',true);
@@ -75,9 +86,10 @@ export function validateSale(v,db,user){
   const initial=option.entryMode==='none'?0:money(num(v.initial,'Valor total da entrada',0.01,value))/100;
   const initialDue=option.entryMode==='none'?'':date(v.initialDue,'Primeiro vencimento da entrada');
   if(option.entryMode!=='none'&&money(initial)<option.entryInstallments)fail('O valor da entrada deve permitir pelo menos um centavo por parcela.');
+  if(existing&&saleType==='product'){p={...p,percent:v.percent??p.percent,payDay:v.payDay??p.payDay};if(v.installments!=null&&Number(v.installments)!==commissionCount(option))option={...option,commissionMode:'fixed',commissionInstallments:v.installments};}
   const rule=rules({percent:p.percent,payDay:p.payDay,installments:commissionCount(option)});
   const entryPayments=option.entryMode==='none'?[]:entrySchedule(initial,option.entryInstallments,initialDue,paidAt);
-  return {client:text(v.client,'Cliente'),contact:text(v.contact,'Contato'),productId:p.id,productName:p.name,developerId:p.developerId,brokerId,block:text(v.block,'Quadra'),lot:text(v.lot,'Lote'),date:saleDate,value,contract,signedAt:contract==='Assinado'?signedAt:'',leadSource,paymentPlan:{...option},initial,initialDue,paidAt:entryPayments.length&&entryPayments.every(p=>p.paidAt)?paidAt:'',entryPayments,notes:text(v.notes,'Observações',false),status:'Em andamento',rule,commissions:schedule(value,rule,saleDate),history:[]};
+  return {saleType,landId:land?.id||null,client:text(v.client,'Cliente'),contact:text(v.contact,'Contato'),productId:p.id,productName:p.name,developerId:p.developerId,brokerId,block:text(v.block,'Quadra'),lot:text(v.lot,'Lote'),date:saleDate,value,contract,signedAt:contract==='Assinado'?signedAt:'',leadSource,paymentPlan:{...option},initial,initialDue,paidAt:entryPayments.length&&entryPayments.every(p=>p.paidAt)?paidAt:'',entryPayments,notes:text(v.notes,'Observações',false),status:'Em andamento',rule,commissions:schedule(value,rule,saleDate),history:[]};
 }
 export function audit(user,action,details=''){return {id:id(),at:new Date().toISOString(),author:user.name,authorId:user.id,action,details};}
 export function scoped(db,user){const sales=user.role==='Gestor'?db.sales:db.sales.filter(s=>s.brokerId===user.id);return {company:db.company,user:{...publicUser(user),cpf:user.cpf||'',creci:user.creci||''},users:db.users.map(u=>user.role==='Gestor'?publicUser(u):({id:u.id,name:u.name,role:u.role,active:u.active})),neighborhoods:db.neighborhoods||[],developers:db.developers,products:db.products,lands:db.lands,sales,rankingSales:db.sales.filter(s=>s.status!=='Cancelada'&&s.contract==='Assinado').map(s=>({brokerId:s.brokerId,date:s.date,value:s.value,productId:s.productId,developerId:s.developerId})),goals:db.goals||[],goalActivity:goalActivity(db.sales,user),leadSummary:leadSummary(db.sales),invitations:user.role==='Gestor'?(db.invitations||[]).map(({tokenHash,...i})=>i):[],audit:user.role==='Gestor'?db.audit:[],demo:db.demo};}

@@ -30,7 +30,7 @@ test('PostgreSQL: records, workflows, constraints, tenant isolation, rollback an
   state=(await run('product.save',{name:'Bairro',location:'Sinop',developerId,percent:4,payDay:20,active:true,saleOptions:[{id:'entry','entryMode':'with',entryInstallments:2,commissionMode:'entry',commissionInstallments:2}],photos:[]})).result;
   const product=state.products[0];assert.equal(product.saleOptions.length,1);
   const sale={client:'Cliente de teste',contact:'Contato',productId:product.id,optionId:'entry',leadSource:'TikTok',block:'1',lot:'2',date:'2026-01-10',value:100000.01,contract:'Assinado',signedAt:'2026-01-10',initial:10000.01,initialDue:'2026-01-31',brokerId:broker.id};
-  state=(await run('sale.create',sale,brokerCookie)).result;const s=state.sales[0];assert.equal(s.commissions.length,2);assert.equal(s.entryPayments.length,2);assert.equal(s.rule.percent,4);assert.equal(s.entryPayments[1].due,'2026-02-28');
+  state=(await run('sale.create',sale)).result;const s=state.sales[0];assert.equal(s.commissions.length,2);assert.equal(s.entryPayments.length,2);assert.equal(s.rule.percent,4);assert.equal(s.entryPayments[1].due,'2026-02-28');
   const persisted=await pool.query('SELECT client,value FROM patrimonio.sales WHERE company_id=$1',[company]);assert.equal(persisted.rows.length,1);assert.equal(persisted.rows[0].value,'100000.01');
   const originalXmin=(await pool.query('SELECT xmin::text FROM patrimonio.products WHERE company_id=$1 AND id=$2',[company,product.id])).rows[0].xmin;
   await run('entry.pay',{saleId:s.id,id:s.entryPayments[0].id,paidAt:'2026-01-31'},brokerCookie);
@@ -42,7 +42,7 @@ test('PostgreSQL: records, workflows, constraints, tenant isolation, rollback an
   await run('product.save',{...product,percent:7,saleOptions:[{id:'none',entryMode:'none',entryInstallments:0,commissionMode:'fixed',commissionInstallments:12}]});
   state=(await run('state')).result;assert.equal(state.sales[0].rule.percent,4);assert.equal(JSON.stringify(state.sales[0].commissions),oldSchedule);
   await run('sale.update',{id:s.id,contract:'Assinado',signedAt:'2026-01-10',status:'Concluída',leadSource:'TikTok',notes:'Concluída'},brokerCookie);
-  await run('sale.create',{...sale,client:'Sem entrada',optionId:'none'},brokerCookie);
+  await run('sale.create',{...sale,client:'Sem entrada',optionId:'none'});
   state=(await run('goals.save',{type:'month',period:'2026-01',individual:500000,team:1500000})).result;assert.equal(state.goals[0].individual,500000);assert.equal(state.sales[0].commissions.length,12);
   await assert.rejects(run('goals.save',{type:'month',period:'2026-01',individual:1,team:1},brokerCookie),e=>e.status===403);
   const land={neighborhood:'Bairro',block:'1',lot:'1',area:300,condition:'Quitado',price:100000,owner:'Dono',contact:'Contato',latitude:-11.8642,longitude:-55.5031,brokerId:broker.id,availability:'Disponível',photos:[]};
@@ -112,6 +112,15 @@ test('PostgreSQL: records, workflows, constraints, tenant isolation, rollback an
   const coldPool=new Pool({connectionString});try{await initialize(coldPool,recovered);assert.equal((await coldPool.query('SELECT count(*)::int AS n FROM patrimonio.sales WHERE company_id=$1',[company])).rows[0].n,2);}finally{await coldPool.end();}
   const invalid={...env,COMPANY_ID:'invalid-'+company,ADMIN_PASSWORD:'short'};
   await assert.rejects(initialize(pool,invalid));assert.equal((await pool.query('SELECT id FROM patrimonio.companies WHERE id=$1',[invalid.COMPANY_ID])).rowCount,0);
+  await assert.rejects(run('sale.create',sale,brokerCookie),e=>e.status===401||e.status===403);
+  const individual={saleType:'third_party',productName:'Bairro individual',client:'Terceiro',contact:'Teste',block:'7',lot:'8',date:'2026-01-10',value:200000,contract:'Assinado',signedAt:'2026-01-10',brokerId:broker.id,leadSource:'Indicação',entryMode:'none',percent:5,installments:2,payDay:15};
+  state=(await run('sale.create',individual,recoveredCookie,{},recovered)).result;
+  const third=state.sales.find(s=>s.client==='Terceiro');assert.equal(third.saleType,'third_party');assert.equal(third.productId,null);assert.equal(third.rule.percent,5);assert.equal(third.commissions.length,2);
+  await run('commission.receive',{saleId:third.id,id:third.commissions[0].id,amount:1000,receivedAt:'2026-02-15'},recoveredCookie,{},recovered);
+  state=(await run('sale.edit',{...individual,id:third.id,value:250000,client:'Terceiro editado'},recoveredCookie,{},recovered)).result;
+  const edited=state.sales.find(s=>s.id===third.id);assert.equal(edited.value,250000);assert.equal(edited.commissions[0].received,1000);assert.equal(edited.commissions[0].id,third.commissions[0].id);assert.equal(edited.commissions[0].amount,6250);
+  await assert.rejects(run('sale.edit',{...individual,id:third.id,value:100},recoveredCookie,{},recovered));
+  assert.equal((await run('state',{},recoveredCookie,{},recovered)).result.sales.find(s=>s.id===third.id).value,250000);
   // Verify tables are typed records, with no JSON/JSONB document column.
   const jsonColumns=await pool.query("SELECT column_name FROM information_schema.columns WHERE table_schema='patrimonio' AND data_type IN ('json','jsonb')");assert.equal(jsonColumns.rowCount,0);
  }finally{await pool.end();}

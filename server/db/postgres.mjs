@@ -41,7 +41,7 @@ function selected(action){
  if(action==='developer.save')return ['users','sessions','developers','audit_events'];
  if(action==='product.save')return ['users','sessions','developers','products','product_conditions','product_photos','audit_events'];
  if(action.startsWith('land.'))return ['users','sessions','lands','land_photos','land_history','audit_events'];
- if(action.startsWith('sale.')||action==='entry.pay'||action==='commission.receive')return ['users','sessions','developers','products','product_conditions','product_photos','sales','entry_installments','commission_installments','sale_history','commission_history','audit_events'];
+ if(action.startsWith('sale.')||action==='entry.pay'||action==='commission.receive')return ['users','sessions','developers','products','product_conditions','product_photos','lands','sales','entry_installments','commission_installments','sale_history','commission_history','audit_events'];
  return ['users','sessions'];
 }
 export class Repository {

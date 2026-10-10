@@ -23,3 +23,8 @@
 .panel-public-link{display:flex;gap:8px;align-items:center;color:var(--on-primary);text-decoration:none;font-size:.8rem;padding:12px;}
 
 .property-share{padding:16px 0;border-block:1px solid #e1e8e4;margin:18px 0}.property-share .actions{display:flex;gap:8px;flex-wrap:wrap}.property-share textarea{width:100%;min-height:240px;margin-top:12px;white-space:pre-wrap}.property-share p{font-size:.8rem;margin-top:10px}.property-share button:first-child{background:var(--navy);color:var(--on-primary)}
+
+.sidebar-toggle{display:inline-flex;flex-shrink:0}.app.sidebar-collapsed .sidebar{display:none}.app.sidebar-collapsed .main{margin-left:0}.app.sidebar-collapsed .main>main{max-width:none}
+@media(max-width:760px){.sidebar-toggle{display:none}}
+
+.sale-edit-link{font-size:.74rem;margin-top:9px;gap:5px;color:var(--navy)}

@@ -91,7 +91,28 @@ if(!Array.isArray(v.rows)||v.rows.length>2000)fail('Importe até 2.000 registros
  if(old){for(const l of db.lands)if(neighborhoodKey(l.neighborhood)===old.nameKey)l.neighborhood=name;Object.assign(old,valid);}else db.neighborhoods.push({...valid,id:id()});
  event(db,user,old?'Bairro atualizado':'Bairro cadastrado',name);
 }else if(action==='developer.save'){manager(user);const valid={name:text(v.name,'Nome'),contact:text(v.contact,'Contato')},old=db.developers.find(d=>d.id===v.id);if(v.id&&!old)fail('Loteadora não encontrada.',404);event(db,user,old?'Loteadora atualizada':'Loteadora cadastrada',JSON.stringify({antes:old,depois:valid}));if(old)Object.assign(old,valid);else db.developers.push({...valid,id:id()});
-}else if(action==='sale.create'){const valid=validateSale(v,db,user);valid.id=id();valid.history.push(audit(user,'Venda registrada'));db.sales.unshift(valid);event(db,user,'Venda registrada',valid.client);
+}else if(action==='sale.create'){manager(user);const valid=validateSale(v,db,user);valid.id=id();valid.history.push(audit(user,'Venda registrada'));db.sales.unshift(valid);event(db,user,'Venda registrada',valid.client);
+}else if(action==='sale.edit'){
+ manager(user);const s=ownedSale(db,user,v.id);if(s.status==='Cancelada')fail('A venda está cancelada.');
+ const valid=validateSale(v,db,user,s);
+ const merge=(next,old,kind)=>{
+  for(const p of old)if((kind==='entry'?!!p.paidAt:p.received>0)&&!next.some(n=>n.number===p.number))fail('Não é possível remover uma parcela com pagamento registrado.');
+  return next.map(n=>{const p=old.find(p=>p.number===n.number);if(!p)return n;
+   if(kind==='entry'){
+    if(p.paidAt&&(money(p.amount)!==money(n.amount)||p.due!==n.due))fail('A edição alteraria uma parcela de entrada já paga. Mantenha seu valor e vencimento.');
+    return {...n,id:p.id,paidAt:p.paidAt||n.paidAt};
+   }
+   if(money(p.received)>money(n.amount))fail('A comissão recalculada ficaria menor que um recebimento já registrado.');
+   return {...n,id:p.id,received:p.received,receivedAt:p.receivedAt,history:p.history};
+  });
+ };
+ valid.entryPayments=merge(valid.entryPayments,s.entryPayments||[],'entry');valid.commissions=merge(valid.commissions,s.commissions,'commission');
+ valid.paidAt=valid.entryPayments.length&&valid.entryPayments.every(p=>p.paidAt)?valid.entryPayments.map(p=>p.paidAt).sort().at(-1):'';
+ valid.status=s.status;
+ if(valid.status==='Concluída'&&(valid.contract!=='Assinado'||!['Pago','Sem entrada'].includes(clientStatus(valid,today()))))fail('Para manter a venda concluída, preserve a assinatura e a quitação da entrada.');
+ const snapshot=x=>Object.fromEntries(['saleType','landId','productId','productName','client','contact','block','lot','value','brokerId','rule','date','contract','signedAt','initial','initialDue','paymentPlan','leadSource','notes'].map(k=>[k,x[k]]));
+ Object.assign(s,valid,{history:[audit(user,'Venda editada',JSON.stringify({antes:snapshot(s),depois:snapshot(valid)})),...s.history]});
+ event(db,user,'Venda editada',s.client);
 }else if(action==='sale.update'){
   const s=ownedSale(db,user,v.id);if(s.status==='Cancelada')fail('A venda está cancelada.');
   const contract=choice(v.contract,['Aguardando assinatura','Assinado'],'Contrato'),signedAt=date(v.signedAt,'Assinatura',true),status=choice(v.status,['Em andamento','Concluída'],'Situação');
