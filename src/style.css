@@ -28,3 +28,5 @@
 @media(max-width:760px){.sidebar-toggle{display:none}}
 
 .sale-edit-link{font-size:.74rem;margin-top:9px;gap:5px;color:var(--navy)}
+
+.sidebar .sidebar-collapse{align-self:flex-end;color:var(--on-primary);width:36px;height:36px;margin:-18px -4px 4px 0}.sidebar .sidebar-collapse svg{transform:rotate(180deg)}.sidebar .sidebar-collapse:hover{background:color-mix(in srgb,var(--on-primary) 15%,transparent)}
