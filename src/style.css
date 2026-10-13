@@ -30,3 +30,8 @@
 .sale-edit-link{font-size:.74rem;margin-top:9px;gap:5px;color:var(--navy)}
 
 .sidebar .sidebar-collapse{align-self:flex-end;color:var(--on-primary);width:36px;height:36px;margin:-18px -4px 4px 0}.sidebar .sidebar-collapse svg{transform:rotate(180deg)}.sidebar .sidebar-collapse:hover{background:color-mix(in srgb,var(--on-primary) 15%,transparent)}
+
+/* Dashboard without a toolbar; theme preference lives in the profile. */
+.dashboard-metrics{grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}.dashboard-metrics .metric{padding:20px 16px}.dashboard-metrics .metric>strong{font-size:clamp(1.15rem,1.8vw,1.7rem)}.dashboard-metrics .metric>div{align-items:flex-start}.dashboard-metrics .metric>div svg{flex-shrink:0}.sidebar-restore{margin-bottom:16px;color:var(--on-canvas);background:var(--canvas);border-color:var(--line)}.profile-appearance{display:flex;justify-content:space-between;align-items:center;gap:18px;border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:4px}.profile-appearance h3{font-size:.95rem}.profile-appearance p{font-size:.78rem;line-height:1.6;color:var(--muted);margin-top:6px}.profile-appearance .theme-toggle{flex-shrink:0}
+@media(min-width:761px) and (max-width:1200px){.dashboard-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.dashboard-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.dashboard-metrics .metric{padding:17px 13px}.dashboard-metrics .metric.featured{grid-column:1/-1}.dashboard-metrics .metric>strong{font-size:1.35rem}.profile-appearance{align-items:flex-start;flex-direction:column}}
