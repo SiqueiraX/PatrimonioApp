@@ -179,3 +179,46 @@ DO $$ BEGIN
   ALTER TABLE patrimonio.sales ADD CONSTRAINT sales_source_check CHECK((sale_type='product' AND product_id IS NOT NULL AND developer_id IS NOT NULL AND land_id IS NULL) OR (sale_type='third_party' AND product_id IS NULL AND developer_id IS NULL));
  END IF;
 END $$;
+
+-- Configurable policies and independent receipts / payouts. Existing sales stay legacy.
+CREATE TABLE IF NOT EXISTS patrimonio.finance_policies (
+ company_id text NOT NULL REFERENCES patrimonio.companies(id), scope text NOT NULL CHECK(scope IN ('default','product','land','sale')), entity_id text NOT NULL,
+ product_id text, land_id text, sale_id text,
+ captor_id text NOT NULL DEFAULT '', captor_name text NOT NULL DEFAULT '',
+ PRIMARY KEY(company_id,scope,entity_id),
+ FOREIGN KEY(company_id,product_id) REFERENCES patrimonio.products(company_id,id),
+ FOREIGN KEY(company_id,land_id) REFERENCES patrimonio.lands(company_id,id),
+ FOREIGN KEY(company_id,sale_id) REFERENCES patrimonio.sales(company_id,id)
+);
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS gross_mode text;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS gross_value numeric(18,6);
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS gross_count integer;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS gross_day integer;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS gross_first date;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS seller_mode text;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS seller_value numeric(18,6);
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS seller_count integer;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS seller_day integer;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS seller_first date;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS captor_mode text;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS captor_value numeric(18,6);
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS captor_count integer;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS captor_day integer;
+ALTER TABLE patrimonio.finance_policies ADD COLUMN IF NOT EXISTS captor_first date;
+CREATE TABLE IF NOT EXISTS patrimonio.finance_installments (
+ company_id text NOT NULL, id text NOT NULL, sale_id text NOT NULL, kind text NOT NULL CHECK(kind IN ('gross','seller','captor')), number integer NOT NULL CHECK(number>0),
+ amount numeric(16,2) NOT NULL CHECK(amount>=0), due date NOT NULL, received numeric(16,2) NOT NULL DEFAULT 0 CHECK(received>=0 AND received<=amount), received_at date, recipient_id text NOT NULL DEFAULT '', recipient_name text NOT NULL,
+ PRIMARY KEY(company_id,id), UNIQUE(company_id,sale_id,kind,number), FOREIGN KEY(company_id,sale_id) REFERENCES patrimonio.sales(company_id,id)
+);
+CREATE TABLE IF NOT EXISTS patrimonio.finance_movements (
+ company_id text NOT NULL, id text NOT NULL, sale_id text NOT NULL, installment_id text NOT NULL, kind text NOT NULL CHECK(kind IN ('gross','seller','captor')), amount numeric(16,2) NOT NULL CHECK(amount>0), date date NOT NULL, author_id text NOT NULL, author text NOT NULL,
+ PRIMARY KEY(company_id,id), FOREIGN KEY(company_id,sale_id) REFERENCES patrimonio.sales(company_id,id), FOREIGN KEY(company_id,installment_id) REFERENCES patrimonio.finance_installments(company_id,id), FOREIGN KEY(company_id,author_id) REFERENCES patrimonio.users(company_id,id)
+);
+CREATE INDEX IF NOT EXISTS finance_due ON patrimonio.finance_installments(company_id,due);
+
+DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_policy_check_0' AND conrelid='patrimonio.finance_policies'::regclass) THEN ALTER TABLE patrimonio.finance_policies ADD CONSTRAINT finance_policy_check_0 CHECK ((scope='default' AND entity_id='default' AND product_id IS NULL AND land_id IS NULL AND sale_id IS NULL) OR (scope='product' AND product_id=entity_id AND product_id IS NOT NULL AND land_id IS NULL AND sale_id IS NULL) OR (scope='land' AND land_id=entity_id AND land_id IS NOT NULL AND product_id IS NULL AND sale_id IS NULL) OR (scope='sale' AND sale_id=entity_id AND sale_id IS NOT NULL AND product_id IS NULL AND land_id IS NULL)); END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_policy_check_1' AND conrelid='patrimonio.finance_policies'::regclass) THEN ALTER TABLE patrimonio.finance_policies ADD CONSTRAINT finance_policy_check_1 CHECK (gross_mode IS NOT NULL AND gross_mode IN ('sale','fixed') AND gross_value IS NOT NULL AND gross_value>=0 AND (gross_mode='fixed' OR gross_value<=100) AND (gross_count IS NULL OR gross_count BETWEEN 1 AND 120) AND gross_day IS NOT NULL AND gross_day BETWEEN 1 AND 31); END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_policy_check_2' AND conrelid='patrimonio.finance_policies'::regclass) THEN ALTER TABLE patrimonio.finance_policies ADD CONSTRAINT finance_policy_check_2 CHECK (seller_mode IS NOT NULL AND seller_mode IN ('sale','fixed','commission') AND seller_value IS NOT NULL AND seller_value>=0 AND (seller_mode='fixed' OR seller_value<=100) AND (seller_count IS NULL OR seller_count BETWEEN 1 AND 120) AND seller_day IS NOT NULL AND seller_day BETWEEN 1 AND 31); END IF;
+IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='finance_policy_check_3' AND conrelid='patrimonio.finance_policies'::regclass) THEN ALTER TABLE patrimonio.finance_policies ADD CONSTRAINT finance_policy_check_3 CHECK (captor_mode IS NOT NULL AND captor_mode IN ('sale','fixed','commission') AND captor_value IS NOT NULL AND captor_value>=0 AND (captor_mode='fixed' OR captor_value<=100) AND (captor_count IS NULL OR captor_count BETWEEN 1 AND 120) AND captor_day IS NOT NULL AND captor_day BETWEEN 1 AND 31); END IF;
+END $$;

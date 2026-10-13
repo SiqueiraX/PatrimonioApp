@@ -1,0 +1,5 @@
+export const FINANCE_MODES=[['commission','% da comissão bruta'],['sale','% do valor da venda'],['fixed','Valor fixo (R$)']];
+export const cents=n=>Math.round((Number(n)+Number.EPSILON)*100);
+export const blankFinance=()=>({grossMode:'sale',grossValue:'',sellerMode:'commission',sellerValue:'',captorMode:'commission',captorValue:0,captorId:'',captorName:'',grossCount:'',sellerCount:'',captorCount:'',grossDay:20,sellerDay:20,captorDay:20,grossFirst:'',sellerFirst:'',captorFirst:''});
+export function allocation(value,f){const calc=(mode,n,gross)=>cents(mode==='fixed'?Number(n):mode==='sale'?Number(value)*Number(n)/100:gross*Number(n)/100);const gross=calc(f.grossMode,f.grossValue,0)/100,seller=calc(f.sellerMode,f.sellerValue,gross)/100,captor=calc(f.captorMode,f.captorValue,gross)/100;return {gross,seller,captor,agency:(cents(gross)-cents(seller)-cents(captor))/100};}
+export function financeRows(sales){return sales.flatMap(s=>(s.financeItems||[]).map(p=>({...p,saleId:s.id,client:s.client,productName:s.productName,block:s.block,lot:s.lot,saleDate:s.date,saleType:s.saleType,productId:s.productId,developerId:s.developerId,brokerId:s.brokerId,status:s.status})));}

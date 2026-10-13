@@ -6,7 +6,7 @@ import {hash,fail,scoped} from '../domain.mjs';
 import {recoverAdmin} from '../recovery.mjs';
 import {tables,byName,hydrate,flatten,empty} from './records.mjs';
 const digest=s=>createHash('sha256').update(s).digest('hex');
-const business=['neighborhoods','neighborhood_photos','developers','products','product_conditions','product_photos','lands','land_photos','sales','entry_installments','commission_installments','goals','land_history','sale_history','commission_history'];
+const business=['finance_policies','finance_installments','finance_movements','neighborhoods','neighborhood_photos','developers','products','product_conditions','product_photos','lands','land_photos','sales','entry_installments','commission_installments','goals','land_history','sale_history','commission_history'];
 const security=['users','sessions','login_attempts','invitations','password_resets','reset_requests','admin_recoveries'];
 const initializations=new WeakMap();
 export async function initialize(pool,env=process.env){
@@ -30,7 +30,7 @@ export async function initialize(pool,env=process.env){
  }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}})();
  pending.set(companyId,promise);try{await promise;}catch(e){pending.delete(companyId);throw e;}
 }
-function selected(action){
+function selectedBase(action){
  if(action==='state')return [...business,'users','sessions','invitations','audit_events'];
  if(action==='login')return [...security,'audit_events'];
  if(action==='info')return [];
@@ -41,9 +41,10 @@ function selected(action){
  if(action==='developer.save')return ['users','sessions','developers','audit_events'];
  if(action==='product.save')return ['users','sessions','developers','products','product_conditions','product_photos','audit_events'];
  if(action.startsWith('land.'))return ['users','sessions','lands','land_photos','land_history','audit_events'];
- if(action.startsWith('sale.')||action==='entry.pay'||action==='commission.receive')return ['users','sessions','developers','products','product_conditions','product_photos','lands','sales','entry_installments','commission_installments','sale_history','commission_history','audit_events'];
+ if(action.startsWith('sale.')||action==='entry.pay'||action==='commission.receive'||action==='finance.settle')return ['users','sessions','developers','products','product_conditions','product_photos','lands','sales','entry_installments','commission_installments','sale_history','commission_history','audit_events'];
  return ['users','sessions'];
 }
+function selected(action){const names=selectedBase(action);return [...new Set([...names,'finance_policies','finance_movements',...(names.includes('sales')?['finance_installments']:[])])];}
 export class Repository {
  constructor(client,companyId){this.c=client;this.companyId=companyId;}
  async query(sql,values=[]){return this.c.query(sql,[this.companyId,...values]);}
@@ -53,13 +54,14 @@ export class Repository {
    let suffix='',args=[];
    if(name==='audit_events')suffix=' ORDER BY at DESC,id DESC LIMIT 500';
    else if(name.endsWith('_history'))suffix=' ORDER BY at DESC,id DESC';
+   else if(name==='finance_installments'&&!['state','login'].includes(body.action||'state')){const sid=body.data?.saleId||body.data?.id;suffix=' AND sale_id=$2';args=[body.action==='sale.create'?'':sid||''];}
    else if(name==='sales')suffix=' ORDER BY created_at DESC,id DESC';
    else if(name==='entry_installments'||name==='commission_installments')suffix=' ORDER BY number';
    else if(name==='login_attempts')suffix=" AND attempted_at>now()-interval '15 minutes'";
    else if(name==='reset_requests')suffix=" AND requested_at>now()-interval '1 hour'";
    // Mutations load only the affected sale and its children. Dashboard loads the company's view.
    const sid=body.action==='sale.create'?null:body.data?.saleId||body.data?.id;
-   if((body.action?.startsWith('sale.')||body.action==='entry.pay'||body.action==='commission.receive')&&['sales','entry_installments','commission_installments','sale_history','commission_history'].includes(name)){
+   if((body.action?.startsWith('sale.')||body.action==='entry.pay'||body.action==='commission.receive'||body.action==='finance.settle')&&['sales','entry_installments','commission_installments','sale_history','commission_history'].includes(name)){
     if(body.action==='sale.create')suffix=' AND false';
     else if(name==='commission_history'){suffix=' AND commission_id IN (SELECT id FROM patrimonio.commission_installments WHERE company_id=$1 AND sale_id=$2)'+suffix;args=[sid||''];}
     else {suffix=` AND ${name==='sales'?'id':'sale_id'}=$2`+suffix;args=[sid||''];}
@@ -97,15 +99,16 @@ export class Repository {
 export async function runTransaction(pool,fn,{req={headers:{}},body={action:'state'},env=process.env}={}){
  await initialize(pool,env);const c=await pool.connect(),companyId=env.COMPANY_ID||'main',action=body.action||'';
  try{
-  await c.query(['state','catalog'].includes(action)?'BEGIN ISOLATION LEVEL REPEATABLE READ':'BEGIN');const repo=new Repository(c,companyId);
+  await c.query(['state','catalog'].includes(action)?'BEGIN ISOLATION LEVEL REPEATABLE READ':'BEGIN');await c.query('SELECT pg_advisory_xact_lock_shared(764240)');const repo=new Repository(c,companyId);
   const recoveryPending=env.ADMIN_RECOVERY_ID&&!(await repo.query('SELECT 1 FROM patrimonio.admin_recoveries WHERE company_id=$1 AND request_hash=$2',[digest(String(env.ADMIN_RECOVERY_ID).trim())])).rowCount;
   const authAction=action==='login'||action==='logout'||(action==='user.save'||action==='profile.save')||action.startsWith('invite.')||action.startsWith('password.');
   const locks=[];
   if(authAction||recoveryPending)locks.push('security');
-  if(action.startsWith('sale.')||action==='entry.pay'||action==='commission.receive')locks.push(action==='sale.create'?'product:'+body.data?.productId:'sale:'+(body.data?.saleId||body.data?.id));
+  if(action.startsWith('sale.')||action==='entry.pay'||action==='commission.receive'||action==='finance.settle')locks.push(action==='sale.create'?'product:'+body.data?.productId:'sale:'+(body.data?.saleId||body.data?.id));
   if(action==='product.save')locks.push('product:'+(body.data?.id||'new'));
   if(action.startsWith('land.')||action==='neighborhood.save')locks.push('lands');
   if(action==='branding.save')locks.push('branding');
+  if(action==='finance.defaults')locks.push('finance-defaults');
   if(action==='goals.save')locks.push('goal:'+body.data?.type+':'+body.data?.period);
   if(action==='developer.save')locks.push('developer:'+(body.data?.id||'new'));
   for(const lock of locks.sort())await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[companyId+':'+lock]);

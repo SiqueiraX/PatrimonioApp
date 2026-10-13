@@ -1,3 +1,4 @@
+import {validateFinance,savePolicy,prepareFinance,settleFinance,policy} from './finance.mjs';
 import {neighborhoodKey} from '../shared/neighborhoods.mjs';
 import {validateBrand} from './branding.mjs';
 import {validateProfile} from './profile.mjs';
@@ -39,7 +40,9 @@ const cookie=String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>
 if(action==='logout'){db.sessions=db.sessions.filter(s=>s!==session);res.setHeader('Set-Cookie','lotea_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return {ok:true};}
 if(action==='state')return scoped(db,user);
 const v=body.data||{};
-if(action==='branding.save'){
+if(action==='finance.defaults'){manager(user);const f=validateFinance(v.finance,db);savePolicy(db,'default','default',f);event(db,user,'Regras financeiras padrão atualizadas','Aplicáveis somente a novas negociações.');
+}else if(action==='finance.settle'){manager(user);const s=settleFinance(db,user,v);event(db,user,'Movimentação financeira',s.client);
+}else if(action==='branding.save'){
  manager(user);db.company=validateBrand(v);event(db,user,'Identidade visual atualizada','Nome, logo e cores da empresa atualizados.');
 }else if(action==='profile.save'){
  const valid=validateProfile(v),newPassword=v.newPassword?passwordValue(v.newPassword):'',sensitive=valid.email!==user.email||!!newPassword;
@@ -79,10 +82,11 @@ if(action==='branding.save'){
   invite.revokedAt=now;event(db,user,'Convite revogado',invite.email);
 }else if(action==='land.save'){
 const old=db.lands.find(l=>l.id===v.id);if(v.id&&!old)fail('Terreno não encontrado.',404);if(old&&user.role!=='Gestor'&&old.brokerId!==user.id)fail('Você só pode editar os terrenos pelos quais é responsável.',403);const valid=validateLand(old&&!Object.hasOwn(v,'latitude')&&!Object.hasOwn(v,'longitude')?{...v,latitude:old.latitude,longitude:old.longitude}:v,db,user);if(db.lands.some(l=>l.id!==old?.id&&duplicateKey(l)===duplicateKey(valid)))fail('Já existe um terreno com esse bairro, quadra e lote.');if(old){const changes=[];for(const [k,label] of Object.entries({price:'Preço',premium:'Ágio',balance:'Saldo devedor',availability:'Disponibilidade',paymentTerms:'Condições de pagamento',paymentOptions:'Formas de pagamento'}))if(JSON.stringify(old[k])!==JSON.stringify(valid[k]))changes.push(`${label}: ${old[k]??'—'} → ${valid[k]??'—'}`);Object.assign(old,valid);old.history.unshift(audit(user,'Terreno atualizado',changes.join('\n')||'Dados cadastrais atualizados.'));}else db.lands.unshift({...valid,id:id(),history:[audit(user,'Terreno cadastrado')]});event(db,user,old?'Terreno atualizado':'Terreno cadastrado',`${valid.neighborhood} · Q${valid.block} L${valid.lot}`);
+if(user.role==='Gestor'&&Object.hasOwn(v,'finance'))savePolicy(db,'land',old?.id||db.lands[0].id,validateFinance(v.finance,db));
 }else if(action==='land.activity'){const l=db.lands.find(l=>l.id===v.id);if(!l)fail('Terreno não encontrado.',404);l.history.unshift(audit(user,'Atividade',text(v.content,'Atividade')));
 }else if(action==='land.import'){
 if(!Array.isArray(v.rows)||v.rows.length>2000)fail('Importe até 2.000 registros por vez.');choice(v.strategy,['skip','update'],'Tratamento de duplicidades');let imported=0,updated=0,skipped=0,errors=[];for(let i=0;i<v.rows.length;i++){try{const raw=v.rows[i],valid=validateLand({...raw,brokerId:raw.brokerId||user.id,availability:raw.availability||'Disponível',photos:raw.photos||[]},db,user),old=db.lands.find(l=>duplicateKey(l)===duplicateKey(valid));if(old&&v.strategy==='skip'){skipped++;continue;}if(old){if(user.role!=='Gestor'&&old.brokerId!==user.id)fail('Sem permissão para atualizar este terreno.');const previous={...old};if(!Object.hasOwn(raw,'latitude')&&!Object.hasOwn(raw,'longitude')){valid.latitude=old.latitude;valid.longitude=old.longitude;}Object.assign(old,valid);old.history.unshift(audit(user,'Atualizado por importação',JSON.stringify({antes:previous,novo:valid},(key,value)=>key==='photos'||key==='history'?undefined:value)));updated++;}else{db.lands.unshift({...valid,id:id(),history:[audit(user,'Importado de planilha')]});imported++;}}catch(e){errors.push({row:i+2,message:e.message});}}event(db,user,'Planilha importada',`${imported} novos, ${updated} atualizados, ${skipped} ignorados, ${errors.length} erros.`);return {...scoped(db,user),importResult:{imported,updated,skipped,errors}};
-}else if(action==='product.save'){manager(user);const valid=validateProduct(v,db),old=db.products.find(p=>p.id===v.id);if(v.id&&!old)fail('Produto não encontrado.',404);event(db,user,old?'Produto atualizado':'Produto cadastrado',JSON.stringify({antes:old,depois:valid},(key,value)=>key==='photos'?undefined:value));if(old)Object.assign(old,valid);else db.products.push({...valid,id:id()});
+}else if(action==='product.save'){manager(user);const valid=validateProduct(v,db),old=db.products.find(p=>p.id===v.id);if(v.id&&!old)fail('Produto não encontrado.',404);event(db,user,old?'Produto atualizado':'Produto cadastrado',JSON.stringify({antes:old,depois:valid},(key,value)=>key==='photos'?undefined:value));if(old)Object.assign(old,valid);else db.products.push({...valid,id:id()});if(Object.hasOwn(v,'finance'))savePolicy(db,'product',old?.id||db.products.at(-1).id,validateFinance(v.finance,db));
 }else if(action==='neighborhood.save'){
  manager(user);db.neighborhoods ||= [];
  const name=text(v.name,'Bairro'),nameKey=neighborhoodKey(name),valid={name,nameKey,photos:photos(v.photos)},old=db.neighborhoods.find(n=>n.id===v.id);
@@ -91,10 +95,11 @@ if(!Array.isArray(v.rows)||v.rows.length>2000)fail('Importe até 2.000 registros
  if(old){for(const l of db.lands)if(neighborhoodKey(l.neighborhood)===old.nameKey)l.neighborhood=name;Object.assign(old,valid);}else db.neighborhoods.push({...valid,id:id()});
  event(db,user,old?'Bairro atualizado':'Bairro cadastrado',name);
 }else if(action==='developer.save'){manager(user);const valid={name:text(v.name,'Nome'),contact:text(v.contact,'Contato')},old=db.developers.find(d=>d.id===v.id);if(v.id&&!old)fail('Loteadora não encontrada.',404);event(db,user,old?'Loteadora atualizada':'Loteadora cadastrada',JSON.stringify({antes:old,depois:valid}));if(old)Object.assign(old,valid);else db.developers.push({...valid,id:id()});
-}else if(action==='sale.create'){manager(user);const valid=validateSale(v,db,user);valid.id=id();valid.history.push(audit(user,'Venda registrada'));db.sales.unshift(valid);event(db,user,'Venda registrada',valid.client);
+}else if(action==='sale.create'){manager(user);const valid=validateSale(v,db,user);valid.id=id();const financial=prepareFinance(valid,v,db);valid.financeItems=financial.financeItems;savePolicy(db,'sale',valid.id,financial.finance);valid.history.push(audit(user,'Venda registrada'));db.sales.unshift(valid);event(db,user,'Venda registrada',valid.client);
 }else if(action==='sale.edit'){
  manager(user);const s=ownedSale(db,user,v.id);if(s.status==='Cancelada')fail('A venda está cancelada.');
- const valid=validateSale(v,db,user,s);
+ const valid=validateSale(v,db,user,s);valid.id=s.id;const financial=prepareFinance(valid,v,db,s);valid.financeItems=financial.financeItems;
+ if(!policy(db,'sale',s.id)&&financial.finance&&s.commissions.some(p=>p.received>0))fail('Esta venda antiga já tem recebimentos. Mantenha o acompanhamento anterior para não duplicar pagamentos.');
  const merge=(next,old,kind)=>{
   for(const p of old)if((kind==='entry'?!!p.paidAt:p.received>0)&&!next.some(n=>n.number===p.number))fail('Não é possível remover uma parcela com pagamento registrado.');
   return next.map(n=>{const p=old.find(p=>p.number===n.number);if(!p)return n;
@@ -111,6 +116,8 @@ if(!Array.isArray(v.rows)||v.rows.length>2000)fail('Importe até 2.000 registros
  valid.status=s.status;
  if(valid.status==='Concluída'&&(valid.contract!=='Assinado'||!['Pago','Sem entrada'].includes(clientStatus(valid,today()))))fail('Para manter a venda concluída, preserve a assinatura e a quitação da entrada.');
  const snapshot=x=>Object.fromEntries(['saleType','landId','productId','productName','client','contact','block','lot','value','brokerId','rule','date','contract','signedAt','initial','initialDue','paymentPlan','leadSource','notes'].map(k=>[k,x[k]]));
+ const previousFinance=policy(db,'sale',s.id);if(JSON.stringify(previousFinance&&Object.fromEntries(Object.keys(financial.finance||{}).map(k=>[k,previousFinance[k]])))!==JSON.stringify(financial.finance))s.history.unshift(audit(user,'Divisão financeira atualizada',JSON.stringify({antes:previousFinance,depois:financial.finance})));
+ savePolicy(db,'sale',s.id,financial.finance);
  Object.assign(s,valid,{history:[audit(user,'Venda editada',JSON.stringify({antes:snapshot(s),depois:snapshot(valid)})),...s.history]});
  event(db,user,'Venda editada',s.client);
 }else if(action==='sale.update'){
@@ -133,7 +140,7 @@ if(!Array.isArray(v.rows)||v.rows.length>2000)fail('Importe até 2.000 registros
   s.paidAt=s.entryPayments.every(p=>p.paidAt)?s.entryPayments.map(p=>p.paidAt).sort().at(-1):'';
   s.history.unshift(audit(user,'Pagamento da entrada registrado',`Parcela ${p.number}: ${p.amount.toFixed(2)} em ${paidAt}`));
 }else if(action==='sale.cancel'){manager(user);const s=ownedSale(db,user,v.id);if(s.status==='Cancelada')fail('Venda já cancelada.');s.status='Cancelada';s.history.unshift(audit(user,'Venda cancelada',text(v.reason,'Motivo')));event(db,user,'Venda cancelada',s.client);
-}else if(action==='commission.receive'){manager(user);const s=ownedSale(db,user,v.saleId),p=s.commissions.find(p=>p.id===v.id);if(!p)fail('Parcela não encontrada.',404);if(s.status==='Cancelada')fail('Não é possível receber comissão de venda cancelada.');const amount=num(v.amount,'Valor recebido',0.01,p.amount-p.received),receivedAt=date(v.receivedAt,'Data do recebimento');if(receivedAt>today())fail('O recebimento não pode estar no futuro.');p.received=money(p.received+amount)/100;p.receivedAt=receivedAt;const ev=audit(user,'Recebimento registrado',`${amount.toFixed(2)} em ${receivedAt}`);p.history.unshift(ev);s.history.unshift({...ev,details:`Parcela ${p.number}: ${ev.details}`});event(db,user,'Comissão recebida',`${s.client}: ${amount.toFixed(2)}`);
+}else if(action==='commission.receive'){manager(user);if(policy(db,'sale',v.saleId))fail('Use o financeiro da venda para registrar recebimentos e repasses.');const s=ownedSale(db,user,v.saleId),p=s.commissions.find(p=>p.id===v.id);if(!p)fail('Parcela não encontrada.',404);if(s.status==='Cancelada')fail('Não é possível receber comissão de venda cancelada.');const amount=num(v.amount,'Valor recebido',0.01,p.amount-p.received),receivedAt=date(v.receivedAt,'Data do recebimento');if(receivedAt>today())fail('O recebimento não pode estar no futuro.');p.received=money(p.received+amount)/100;p.receivedAt=receivedAt;const ev=audit(user,'Recebimento registrado',`${amount.toFixed(2)} em ${receivedAt}`);p.history.unshift(ev);s.history.unshift({...ev,details:`Parcela ${p.number}: ${ev.details}`});event(db,user,'Comissão recebida',`${s.client}: ${amount.toFixed(2)}`);
 }else if(action==='user.save'){manager(user);if(!v.id)fail('Para criar uma conta, gere um convite para o usuário.');const old=db.users.find(u=>u.id===v.id),valid={name:text(v.name,'Nome'),email:text(v.email,'E-mail').toLowerCase(),role:choice(v.role,['Gestor','Corretor'],'Cargo'),active:!!v.active};if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valid.email))fail('E-mail inválido.');if(db.users.some(u=>u.id!==old?.id&&u.email===valid.email))fail('Este e-mail já está cadastrado.');if(v.id&&!old)fail('Usuário não encontrado.',404);if(old?.id===user.id&&(!valid.active||valid.role!=='Gestor'))fail('Você não pode desativar ou rebaixar sua própria conta.');if(!old||v.password){if(String(v.password||'').length<12)fail('A senha precisa ter pelo menos 12 caracteres.');valid.password=hash(v.password);}if(old){Object.assign(old,valid);db.sessions=db.sessions.filter(s=>s.userId!==old.id||s===session);}else db.users.push({...valid,id:id()});event(db,user,old?'Usuário atualizado':'Usuário cadastrado',valid.email);
 }else fail('Ação não encontrada.',404);
 return scoped(db,user);

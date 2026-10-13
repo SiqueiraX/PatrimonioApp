@@ -23,6 +23,9 @@ export const tables=[
  table('sales','sales','id saleType landId client contact productId productName developerId brokerId block lot date value contract signedAt leadSource optionId entryMode entryInstallments commissionMode commissionInstallments percent payDay initial initialDue paidAt notes status',{aliases:{date:'sale_date',percent:'commission_percent',payDay:'payment_day'},dates:['date','signedAt','initialDue','paidAt'],numbers:['value','entryInstallments','commissionInstallments','percent','payDay','initial']}),
  table('entry_installments','entries','id saleId number amount due paidAt',{dates:['due','paidAt'],numbers:['number','amount']}),
  table('commission_installments','commissions','id saleId number amount due received receivedAt',{dates:['due','receivedAt'],numbers:['number','amount','received']}),
+ table('finance_policies','financePolicies','scope entityId productId landId saleId captorId captorName grossMode grossValue grossCount grossDay grossFirst sellerMode sellerValue sellerCount sellerDay sellerFirst captorMode captorValue captorCount captorDay captorFirst',{key:['scope','entity_id'],dates:['grossFirst','sellerFirst','captorFirst'],numbers:['grossValue', 'grossCount', 'grossDay', 'sellerValue', 'sellerCount', 'sellerDay', 'captorValue', 'captorCount', 'captorDay']}),
+ table('finance_installments','financeItems','id saleId kind number amount due received receivedAt recipientId recipientName',{dates:['due','receivedAt'],numbers:['number','amount','received']}),
+ table('finance_movements','financeMovements','id saleId installmentId kind amount date authorId author',{dates:['date'],numbers:['amount']}),
  table('goals','goals','type period individual team updatedAt updatedBy',{key:['type','period'],numbers:['individual','team']}),
  table('invitations','invitations','id email role tokenHash createdAt createdBy createdByName expiresAt usedAt revokedAt',{times:['createdAt','expiresAt','usedAt','revokedAt']}),
  table('sessions','sessions','token userId expires',{key:['token_hash'],aliases:{token:'token_hash',expires:'expires_at'},times:['expires']}),
@@ -37,6 +40,7 @@ export function empty(){return {demo:false,users:[],neighborhoods:[],developers:
 export function hydrate(rows){
  const lists=Object.fromEntries(tables.map(t=>[t.list,(rows[t.name]||[]).map(r=>t.decode(r))]));
  const db={...empty(),...lists};
+ for(const s of db.sales)s.financeItems=lists.financeItems.filter(p=>p.saleId===s.id).sort((a,b)=>['gross','seller','captor'].indexOf(a.kind)-['gross','seller','captor'].indexOf(b.kind)||a.number-b.number);
  db.adminRecoveries=lists.recoveries.map(r=>r.requestHash);
  for(const n of db.neighborhoods)n.photos=lists.neighborhoodPhotos.filter(p=>p.neighborhoodId===n.id).sort((a,b)=>a.position-b.position).map(p=>p.dataUrl);
  for(const p of db.products){p.saleOptions=lists.conditions.filter(o=>o.productId===p.id).map(({productId,...o})=>o);p.photos=lists.productPhotos.filter(o=>o.productId===p.id).sort((a,b)=>a.position-b.position).map(o=>o.dataUrl);}
@@ -45,7 +49,7 @@ export function hydrate(rows){
  return db;
 }
 export function flatten(db){
- const lists={...db,conditions:[],neighborhoodPhotos:[],productPhotos:[],landPhotos:[],entries:[],commissions:[],landHistory:[],saleHistory:[],commissionHistory:[],recoveries:db.adminRecoveries.map(requestHash=>({requestHash}))};
+ const lists={...db,financeItems:db.sales.flatMap(s=>s.financeItems||[]),conditions:[],neighborhoodPhotos:[],productPhotos:[],landPhotos:[],entries:[],commissions:[],landHistory:[],saleHistory:[],commissionHistory:[],recoveries:db.adminRecoveries.map(requestHash=>({requestHash}))};
  lists.lands=db.lands.map(l=>({...l,duplicateKey:duplicateKey(l)}));
  lists.sales=db.sales.map(s=>({...s,optionId:s.paymentPlan.id,...s.paymentPlan,id:s.id,percent:s.rule.percent,payDay:s.rule.payDay,commissionInstallments:s.rule.installments}));
  for(const n of db.neighborhoods||[])lists.neighborhoodPhotos.push(...n.photos.map((dataUrl,position)=>({neighborhoodId:n.id,position,dataUrl})));
