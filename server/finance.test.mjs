@@ -55,3 +55,25 @@ test('dashboard recebe comissão bruta antes dos repasses e não presume bruto e
  }
  assert.equal(projectSale({...s,id:'legacy',financeItems:[]},db,db.users[0]).grossCommission,undefined);
 });
+
+test('comissão gerada inclui vendas simples sem inventar bruto e não duplica repasses',()=>{
+ const {db,s}=setup();
+ s.rule.percent=1.8;
+ s.commissions=[{amount:1200.01,received:500},{amount:1200.02,received:1200.02},{amount:1199.97,received:0}];
+ for(const user of db.users.slice(0,2)){
+  const old=projectSale(s,db,user);
+  assert.equal(old.generatedCommission,3600);
+  assert.equal(old.commissionBasis,'registered');
+  assert.equal(old.grossCommission,undefined);
+ }
+ const prepared=prepareFinance(s,{finance:f()},db);
+ Object.assign(s,prepared);
+ savePolicy(db,'sale',s.id,prepared.finance);
+ for(const user of db.users.slice(0,2)){
+  const sale=projectSale(s,db,user);
+  assert.equal(sale.generatedCommission,8000);
+  assert.equal(sale.commissionBasis,'gross');
+  assert.equal(sale.grossCommission,8000);
+ }
+ assert.equal(s.commissions.reduce((n,p)=>n+p.amount,0),3600);
+});

@@ -56,10 +56,10 @@ export function financeProjection(db,user){
  return {financePolicies:manager?db.financePolicies||[]:[],financeMovements:manager?db.financeMovements||[]:[],financeDefaults:manager?policy(db,'default','default'):null};
 }
 export function projectSale(s,db,user){
- const f=policy(db,'sale',s.id);if(!f)return user.role==='Gestor'?s:{...s,history:(s.history||[]).map(h=>['Venda editada','Divisão financeira atualizada'].includes(h.action)?{...h,details:'Dados da venda atualizados.'}:h)};
+ const f=policy(db,'sale',s.id);if(!f){const legacy={...s,generatedCommission:(s.commissions||[]).reduce((sum,p)=>sum+cents(p.amount),0)/100,commissionBasis:'registered'};return user.role==='Gestor'?legacy:{...legacy,history:(s.history||[]).map(h=>['Venda editada','Divisão financeira atualizada'].includes(h.action)?{...h,details:'Dados da venda atualizados.'}:h)};}
  const own=(s.financeItems||[]).filter(p=>p.kind!=='gross'&&(user.role==='Gestor'||p.recipientId===user.id));
  const commissions=own.map(p=>({...p,history:[],number:p.number}));
- const result={...s,finance:user.role==='Gestor'?f:undefined,financeConfigured:true,grossCommission:allocation(s.value,f).gross,financeItems:user.role==='Gestor'?s.financeItems:own,commissions};
+ const result={...s,finance:user.role==='Gestor'?f:undefined,financeConfigured:true,grossCommission:allocation(s.value,f).gross,generatedCommission:allocation(s.value,f).gross,commissionBasis:'gross',financeItems:user.role==='Gestor'?s.financeItems:own,commissions};
  if(user.role!=='Gestor'){result.history=[];result.notes='';result.rule={...s.rule,percent:s.value?own.reduce((a,p)=>a+p.amount,0)/s.value*100:0};}
  return result;
 }
