@@ -42,3 +42,16 @@ test('PostgreSQL financeiro: política, snapshot, caixa independente, concorrên
 });
 
 test('vencimentos no dia 31 voltam ao dia acordado após fevereiro',()=>{const {db,s}=setup();const prepared=prepareFinance(s,{finance:{...f(),grossDay:31}},db);assert.deepEqual(prepared.financeItems.filter(p=>p.kind==='gross').map(p=>p.due),['2026-02-28','2026-03-31','2026-04-30']);const explicit=prepareFinance(s,{finance:{...f(),grossDay:31,grossFirst:'2026-02-15'}},db);assert.deepEqual(explicit.financeItems.filter(p=>p.kind==='gross').map(p=>p.due),['2026-02-15','2026-03-15','2026-04-15']);});
+
+test('dashboard recebe comissão bruta antes dos repasses e não presume bruto em vendas antigas',()=>{
+ const {db,s}=setup();
+ const prepared=prepareFinance(s,{finance:f()},db);
+ Object.assign(s,prepared);
+ savePolicy(db,'sale',s.id,prepared.finance);
+ for(const user of db.users.slice(0,2)){
+  const projected=projectSale(s,db,user);
+  assert.equal(projected.grossCommission,8000);
+  assert.equal(projected.commissions.reduce((sum,p)=>sum+p.amount,0),4400);
+ }
+ assert.equal(projectSale({...s,id:'legacy',financeItems:[]},db,db.users[0]).grossCommission,undefined);
+});
