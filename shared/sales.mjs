@@ -9,12 +9,14 @@ export function commissionCount(option) {
   return Number(option.commissionMode === 'entry' ? option.entryInstallments : option.commissionInstallments);
 }
 export function optionLabel(option) {
+  if(option.id==='untracked')return 'Entrada não informada';
   return option.entryMode === 'none' ? 'Sem entrada' : Number(option.entryInstallments) === 1 ? 'Com entrada à vista' : `Com entrada em ${option.entryInstallments}x`;
 }
 export function commissionLabel(option) {
   return option.commissionMode === 'entry' ? `Comissão em ${commissionCount(option)}x, acompanha a entrada` : commissionCount(option) === 1 ? 'Comissão à vista no mês seguinte' : `Comissão fixa em ${commissionCount(option)}x`;
 }
 export function clientStatus(sale, today) {
+  if(sale.paymentPlan?.id==='untracked')return 'Entrada não acompanhada';
   if (sale.paymentPlan?.entryMode === 'none') return 'Sem entrada';
   if (sale.entryPayments?.length) {
     if (sale.entryPayments.every(p => p.paidAt)) return 'Pago';

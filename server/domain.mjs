@@ -72,7 +72,7 @@ export function validateSale(v,db,user,existing=null){
   }else{
     p=db.products.find(p=>p.id===v.productId&&(p.active||sameProduct));
     if(!p)fail('Selecione um produto ativo.');
-    option=sameProduct?existing.paymentPlan:saleOptions(p).find(o=>o.id===v.optionId);
+    option=sameProduct?existing.paymentPlan:!v.optionId?{id:'untracked',entryMode:'none',entryInstallments:0,commissionMode:'fixed',commissionInstallments:v.installments||1}:saleOptions(p).find(o=>o.id===v.optionId);
     if(!option)fail('Selecione uma condição de venda disponível neste produto.');
     if(sameProduct)p={...p,percent:existing.rule.percent,payDay:existing.rule.payDay};
   }

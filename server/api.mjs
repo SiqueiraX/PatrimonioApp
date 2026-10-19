@@ -114,7 +114,7 @@ if(!Array.isArray(v.rows)||v.rows.length>2000)fail('Importe até 2.000 registros
  valid.entryPayments=merge(valid.entryPayments,s.entryPayments||[],'entry');valid.commissions=merge(valid.commissions,s.commissions,'commission');
  valid.paidAt=valid.entryPayments.length&&valid.entryPayments.every(p=>p.paidAt)?valid.entryPayments.map(p=>p.paidAt).sort().at(-1):'';
  valid.status=s.status;
- if(valid.status==='Concluída'&&(valid.contract!=='Assinado'||!['Pago','Sem entrada'].includes(clientStatus(valid,today()))))fail('Para manter a venda concluída, preserve a assinatura e a quitação da entrada.');
+ if(valid.status==='Concluída'&&(valid.contract!=='Assinado'||!['Pago','Sem entrada','Entrada não acompanhada'].includes(clientStatus(valid,today()))))fail('Para manter a venda concluída, preserve a assinatura e a quitação da entrada.');
  const snapshot=x=>Object.fromEntries(['saleType','landId','productId','productName','client','contact','block','lot','value','brokerId','rule','date','contract','signedAt','initial','initialDue','paymentPlan','leadSource','notes'].map(k=>[k,x[k]]));
  const previousFinance=policy(db,'sale',s.id);if(JSON.stringify(previousFinance&&Object.fromEntries(Object.keys(financial.finance||{}).map(k=>[k,previousFinance[k]])))!==JSON.stringify(financial.finance))s.history.unshift(audit(user,'Divisão financeira atualizada',JSON.stringify({antes:previousFinance,depois:financial.finance})));
  savePolicy(db,'sale',s.id,financial.finance);
@@ -128,7 +128,7 @@ if(!Array.isArray(v.rows)||v.rows.length>2000)fail('Importe até 2.000 registros
   if(contract==='Assinado'&&!signedAt)fail('Informe a data de assinatura.');
   if(signedAt>today()||paidAt>today())fail('A data não pode estar no futuro.');
   const payment=clientStatus({...s,paidAt},today());
-  if(status==='Concluída'&&(contract!=='Assinado'||!['Pago','Sem entrada'].includes(payment)))fail('Para concluir, registre a assinatura e o pagamento de todas as parcelas da entrada.');
+  if(status==='Concluída'&&(contract!=='Assinado'||!['Pago','Sem entrada','Entrada não acompanhada'].includes(payment)))fail('Para concluir, registre a assinatura e o pagamento de todas as parcelas da entrada.');
   const changes={contract,signedAt:contract==='Assinado'?signedAt:'',paidAt,status,leadSource,notes:text(v.notes,'Observações',false)};
   s.history.unshift(audit(user,'Venda atualizada',JSON.stringify({antes:{contract:s.contract,signedAt:s.signedAt,paidAt:s.paidAt,status:s.status,leadSource:s.leadSource},depois:changes})));Object.assign(s,changes);
 }else if(action==='entry.pay'){

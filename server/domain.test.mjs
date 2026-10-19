@@ -26,3 +26,15 @@ await run(db,b,'land.save',l);await run(db,b2,'land.activity',{id:db.lands[0].id
 let result=await run(db,b,'land.import',{rows:[l,{...l,lot:'5'},{...l,lot:'6',area:-1}],strategy:'skip'});assert.deepEqual([result.importResult.imported,result.importResult.skipped,result.importResult.errors.length],[1,1,1]);result=await run(db,b,'land.import',{rows:[{...l,price:170000}],strategy:'update'});assert.equal(result.importResult.updated,1);assert.equal(db.lands.find(x=>x.lot==='4').price,170000);assert.equal(db.lands.find(x=>x.lot==='4').history.length,3);
 });
 test('bloqueio de acesso desativado e limite de tentativas',async()=>{const db=fixture(),cookie=await login(db,'b@test.local');db.users[1].active=false;await assert.rejects(run(db,cookie,'state',{}),e=>e.status===401);for(let i=0;i<10;i++)await execute(db,req(),{setHeader(){}},{action:'login',email:'x@test',password:'errada'});const blocked=await execute(db,req(),{setHeader(){}},{action:'login',email:'g@test.local',password:'SenhaTeste12345'});assert.equal(blocked.status,429);});
+
+test('registrar produto sem condição nem entrada mantém comissão manual e permite edição',async()=>{
+ const db=fixture(),g=await login(db,'g@test.local');
+ await run(db,g,'developer.save',{name:'Parceira',contact:'123'});
+ await run(db,g,'product.save',{name:'Produto',location:'Sinop',developerId:db.developers[0].id,percent:0,payDay:20,saleOptions:[{id:'entry',entryMode:'with',entryInstallments:5,commissionMode:'entry',commissionInstallments:5}],active:true});
+ const data={saleType:'product',finance:null,client:'Cliente',contact:'123',productId:db.products[0].id,leadSource:'Indicação',brokerId:'b',block:'1',lot:'2',date:'2026-03-12',value:200000,contract:'Assinado',signedAt:'2026-03-12',percent:4,installments:2,payDay:10,firstCommissionDue:'2026-04-10'};
+ await run(db,g,'sale.create',data);
+ const s=db.sales[0];assert.equal(s.paymentPlan.id,'untracked');assert.equal(s.initial,0);assert.equal(s.initialDue,'');assert.deepEqual(s.entryPayments,[]);assert.equal(s.commissions.length,2);assert.equal(s.commissions[0].amount,4000);assert.equal(s.commissions[0].due,'2026-04-10');
+ await run(db,g,'sale.edit',{...data,id:s.id,optionId:s.paymentPlan.id,client:'Cliente editado'});
+ assert.equal(s.client,'Cliente editado');assert.deepEqual(s.entryPayments,[]);
+ await run(db,g,'sale.update',{id:s.id,contract:'Assinado',signedAt:'2026-03-12',status:'Concluída'});assert.equal(s.status,'Concluída');
+});
